@@ -1,0 +1,58 @@
+<%- include('admin/partials/header', { title: 'Produtos' }) %>
+
+<div class="admin-content">
+  <div class="admin-header">
+    <h1>Produtos</h1>
+    <a href="/admin/products/new" class="btn btn-primary"><i class="fas fa-plus"></i> Novo Produto</a>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-body">
+      <% if (products.length === 0) { %>
+        <div class="empty-state">
+          <i class="fas fa-cube"></i>
+          <h3>Nenhum produto cadastrado</h3>
+          <a href="/admin/products/new" class="btn btn-primary">Cadastrar Primeiro Produto</a>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Imagem</th>
+                <th>Nome</th>
+                <th>Categoria</th>
+                <th>Preço</th>
+                <th>Prazo</th>
+                <th>Destaque</th>
+                <th>Ativo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% products.forEach(product => { %>
+                <tr>
+                  <td><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
+                  <td><%= product.name %></td>
+                  <td><%= product.category %></td>
+                  <td>R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
+                  <td><%= product.delivery_time %></td>
+                  <td><%= product.featured ? '⭐' : '-' %></td>
+                  <td><%= product.active ? '✅' : '❌' %></td>
+                  <td class="actions-cell">
+                    <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i></a>
+                    <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
+                      <button type="submit" class="btn btn-small btn-danger"><i class="fas fa-trash"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('admin/partials/footer') %>

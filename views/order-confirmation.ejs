@@ -1,0 +1,58 @@
+<%- include('partials/header', { title: 'Pedido Confirmado' }) %>
+
+<section class="section confirmation-section">
+  <div class="container">
+    <div class="confirmation-box">
+      <div class="confirmation-icon">
+        <i class="fas fa-check-circle"></i>
+      </div>
+      <h1>Pedido Confirmado!</h1>
+      <p class="confirmation-subtitle">Seu pedido foi recebido com sucesso. Em breve entraremos em contato.</p>
+      
+      <div class="confirmation-card">
+        <div class="confirmation-header">
+          <span class="confirmation-label">Pedido #<%= order.id %></span>
+          <span class="confirmation-status status-<%= order.status %>">
+            <%= order.status === 'pending' ? 'Aguardando Confirmação' : order.status %>
+          </span>
+        </div>
+        <div class="confirmation-date">
+          <i class="fas fa-calendar"></i> <%= new Date(order.created_at).toLocaleString('pt-BR') %>
+        </div>
+      </div>
+
+      <div class="confirmation-details">
+        <h3>Itens do Pedido</h3>
+        <div class="confirmation-items">
+          <% items.forEach(item => { %>
+            <div class="conf-item">
+              <span class="conf-item-name"><%= item.product_name %></span>
+              <span class="conf-item-qty"><%= item.quantity %>x</span>
+              <span class="conf-item-price">R$ <%= (item.quantity * item.price).toFixed(2).replace('.', ',') %></span>
+            </div>
+          <% }) %>
+        </div>
+        <div class="confirmation-total">
+          <strong>Total: R$ <%= order.total.toFixed(2).replace('.', ',') %></strong>
+        </div>
+      </div>
+
+      <div class="confirmation-delivery">
+        <i class="fas fa-clock"></i>
+        <div>
+          <strong>Prazo de Entrega Estimado</strong>
+          <p>O prazo de entrega varia conforme o produto. Você receberá atualizações do status do seu pedido.</p>
+        </div>
+      </div>
+
+      <div class="confirmation-actions">
+        <a href="/" class="btn btn-primary"><i class="fas fa-shopping-bag"></i> Continuar Comprando</a>
+        <a href="https://wa.me/<%= settings.whatsapp_number || '5562992371986' %>?text=Olá! Fiz o pedido #<%= order.id %> na RYTECH3D e gostaria de acompanhar." target="_blank" class="btn btn-outline">
+          <i class="fab fa-whatsapp"></i> Acompanhar no WhatsApp
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,57 @@
+<%- include('admin/partials/header', { title: 'Clientes' }) %>
+
+<div class="admin-content">
+  <div class="admin-header">
+    <h1>Clientes</h1>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-body">
+      <form class="search-bar" method="GET" action="/admin/customers">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" placeholder="Buscar por nome, email ou CPF..." value="<%= search %>">
+        <button type="submit" class="btn btn-small">Buscar</button>
+      </form>
+
+      <% if (customers.length === 0) { %>
+        <div class="empty-state">
+          <i class="fas fa-users"></i>
+          <h3>Nenhum cliente encontrado</h3>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Email</th>
+                <th>CPF</th>
+                <th>Telefone</th>
+                <th>Cidade</th>
+                <th>Pedidos</th>
+                <th>Total Gasto</th>
+                <th>Cadastro</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% customers.forEach(customer => { %>
+                <tr>
+                  <td><%= customer.full_name %></td>
+                  <td><%= customer.email %></td>
+                  <td><%= customer.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></td>
+                  <td><%= customer.phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3') %></td>
+                  <td><%= customer.city %>/<%= customer.state %></td>
+                  <td><%= customer.total_orders %></td>
+                  <td>R$ <%= (customer.total_spent || 0).toFixed(2).replace('.', ',') %></td>
+                  <td><%= new Date(customer.created_at).toLocaleDateString('pt-BR') %></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('admin/partials/footer') %>

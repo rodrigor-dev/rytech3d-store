@@ -1,0 +1,53 @@
+  </main>
+
+  <footer class="footer">
+    <div class="footer-container">
+      <div class="footer-grid">
+        <div class="footer-col">
+          <div class="footer-logo">
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
+          </div>
+          <p class="footer-desc">Impressão 3D de alta qualidade. Produtos personalizados feitos sob encomenda com a melhor qualidade e acabamento.</p>
+          <div class="footer-social">
+            <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=<%= encodeURIComponent(siteSettings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.') %>" target="_blank" rel="noopener" class="social-link whatsapp" aria-label="WhatsApp">
+              <i class="fab fa-whatsapp"></i>
+            </a>
+            <a href="<%= siteSettings.instagram_url || 'https://instagram.com/rytech3d' %>" target="_blank" rel="noopener" class="social-link instagram" aria-label="Instagram">
+              <i class="fab fa-instagram"></i>
+            </a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <h4>Links Rápidos</h4>
+          <a href="/">Início</a>
+          <a href="/#produtos">Produtos</a>
+          <a href="/cart">Carrinho</a>
+          <% if (!currentUser) { %><a href="/login">Entrar</a><% } %>
+        </div>
+        <div class="footer-col">
+          <h4>Contato</h4>
+          <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>" target="_blank"><i class="fab fa-whatsapp"></i> (62) 99237-1986</a>
+          <a href="<%= siteSettings.instagram_url || 'https://instagram.com/rytech3d' %>" target="_blank"><i class="fab fa-instagram"></i> @rytech3d</a>
+        </div>
+        <div class="footer-col">
+          <h4>Horário de Atendimento</h4>
+          <p>Seg a Sex: 08:00 - 18:00</p>
+          <p>Sáb: 08:00 - 12:00</p>
+          <p class="footer-note">*Produtos feitos sob encomenda. Consulte o prazo de entrega em cada produto.</p>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>&copy; <%= new Date().getFullYear() %> RYTECH3D - Todos os direitos reservados.</p>
+      </div>
+    </div>
+  </footer>
+
+  <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=<%= encodeURIComponent(siteSettings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.') %>" target="_blank" rel="noopener" class="whatsapp-float" aria-label="WhatsApp">
+    <i class="fab fa-whatsapp"></i>
+  </a>
+
+  <script src="/js/main.js"></script>
+  <script src="/js/cart.js"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="RYTECH3D - Produtos em Impressão 3D personalizados. Canecas, chaveiros, action figures e muito mais.">
+  <title><%= typeof title !== 'undefined' ? title + ' | ' : '' %><%= siteSettings.site_name || 'RYTECH3D' %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" type="image/png" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='28' font-size='28'>⚡</text></svg>">
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-logo">
+        <span class="logo-icon">⚡</span>
+        <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
+      </a>
+      <button class="nav-toggle" id="navToggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="nav-links" id="navLinks">
+        <a href="/" class="nav-link <%= currentPath === '/' ? 'active' : '' %>">Início</a>
+        <a href="/#produtos" class="nav-link">Produtos</a>
+        <% if (currentUser) { %>
+          <a href="/my-orders" class="nav-link">Meus Pedidos</a>
+          <a href="/profile" class="nav-link"><i class="fas fa-user"></i> <%= currentUser.name.split(' ')[0] %></a>
+        <% } else { %>
+          <a href="/login" class="nav-link">Entrar</a>
+        <% } %>
+        <a href="/cart" class="nav-link cart-link">
+          <i class="fas fa-shopping-cart"></i>
+          <span class="cart-badge" id="cartBadge">0</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+  <main class="main-content">

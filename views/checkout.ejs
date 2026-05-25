@@ -1,0 +1,156 @@
+<%- include('partials/header', { title: 'Finalizar Pedido' }) %>
+
+<section class="section checkout-section">
+  <div class="container">
+    <div class="checkout-container">
+      <div class="checkout-main">
+        <h1>Finalizar Pedido</h1>
+        
+        <% if (error) { %>
+          <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div>
+        <% } %>
+
+        <div class="checkout-card">
+          <div class="checkout-card-header">
+            <i class="fas fa-map-marker-alt"></i>
+            <h2>Endereço de Entrega</h2>
+          </div>
+          <div class="checkout-card-body">
+            <p><strong><%= user.full_name %></strong></p>
+            <p><%= user.street %>, <%= user.number %><%= user.complement ? ' - ' + user.complement : '' %></p>
+            <p><%= user.neighborhood %> - <%= user.city %>/<%= user.state %></p>
+            <p>CEP: <%= user.zip_code.replace(/(\d{5})(\d{3})/, '$1-$2') %></p>
+            <p>Telefone: <%= user.phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3') %></p>
+            <a href="/profile" class="btn btn-small btn-outline">Alterar Endereço</a>
+          </div>
+        </div>
+
+        <div class="checkout-card">
+          <div class="checkout-card-header">
+            <i class="fas fa-box"></i>
+            <h2>Itens do Pedido</h2>
+          </div>
+          <div class="checkout-card-body" id="checkoutItems">
+            <div class="checkout-loading">Carregando itens do carrinho...</div>
+          </div>
+        </div>
+
+        <div class="checkout-card">
+          <div class="checkout-card-header">
+            <i class="fas fa-sticky-note"></i>
+            <h2>Observações</h2>
+          </div>
+          <div class="checkout-card-body">
+            <textarea id="orderNotes" class="form-control" rows="3" placeholder="Alguma observação sobre o pedido? (opcional)"></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="checkout-sidebar">
+        <div class="checkout-summary">
+          <h3>Resumo do Pedido</h3>
+          <div id="summaryItems"></div>
+          <hr>
+          <div class="summary-total">
+            <span>Total</span>
+            <span id="summaryTotal">R$ 0,00</span>
+          </div>
+          <button class="btn btn-primary btn-block btn-lg" id="placeOrderBtn" onclick="placeOrder()">
+            <i class="fas fa-check"></i> Confirmar Pedido
+          </button>
+          <p class="checkout-info"><i class="fas fa-info-circle"></i> Ao confirmar, você receberá a confirmação e iniciaremos a produção.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function renderCheckoutItems() {
+  const cart = getCart();
+  const container = document.getElementById('checkoutItems');
+  const summaryItems = document.getElementById('summaryItems');
+  const summaryTotal = document.getElementById('summaryTotal');
+  
+  if (cart.length === 0) {
+    container.innerHTML = '<div class="empty-state"><i class="fas fa-shopping-cart"></i><h3>Carrinho vazio</h3><p>Adicione produtos ao carrinho primeiro.</p><a href="/" class="btn btn-primary">Ver Produtos</a></div>';
+    document.getElementById('placeOrderBtn').disabled = true;
+    summaryItems.innerHTML = '<p class="empty-summary">Nenhum item</p>';
+    summaryTotal.textContent = 'R$ 0,00';
+    return;
+  }
+
+  let html = '';
+  let summaryHtml = '';
+  let total = 0;
+
+  cart.forEach((item, index) => {
+    const subtotal = item.price * item.quantity;
+    total += subtotal;
+    html += `
+      <div class="checkout-item">
+        <img src="${item.image || '/uploads/products/default.svg'}" alt="${item.name}" onerror="this.src='/uploads/products/default.svg'">
+        <div class="checkout-item-info">
+          <h4>${item.name}</h4>
+          <p>Qtd: ${item.quantity} x R$ ${item.price.toFixed(2).replace('.', ',')}</p>
+        </div>
+        <div class="checkout-item-total">R$ ${subtotal.toFixed(2).replace('.', ',')}</div>
+      </div>
+    `;
+    summaryHtml += `
+      <div class="summary-item">
+        <span>${item.name} (${item.quantity}x)</span>
+        <span>R$ ${subtotal.toFixed(2).replace('.', ',')}</span>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  summaryItems.innerHTML = summaryHtml;
+  summaryTotal.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+  document.getElementById('placeOrderBtn').disabled = false;
+}
+
+async function placeOrder() {
+  const btn = document.getElementById('placeOrderBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processando...';
+
+  const cart = getCart();
+  if (cart.length === 0) {
+    showToast('Carrinho vazio!');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pedido';
+    return;
+  }
+
+  const notes = document.getElementById('orderNotes').value;
+
+  try {
+    const response = await fetch('/place', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: cart, notes })
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      clearCart();
+      window.location.href = '/confirmation/' + data.orderId;
+    } else {
+      showToast(data.error || 'Erro ao processar pedido');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pedido';
+    }
+  } catch (err) {
+    showToast('Erro de conexão. Tente novamente.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pedido';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', renderCheckoutItems);
+</script>
+
+<%- include('partials/footer') %>

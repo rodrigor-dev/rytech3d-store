@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
+  <rect width="400" height="400" fill="#1a1f2e" rx="8"/>
+  <text x="200" y="170" text-anchor="middle" font-family="Arial" font-size="60" fill="#00d4aa">⚡</text>
+  <text x="200" y="230" text-anchor="middle" font-family="Arial" font-size="18" fill="#94a3b8">RYTECH3D</text>
+  <text x="200" y="260" text-anchor="middle" font-family="Arial" font-size="13" fill="#64748b">Produto 3D</text>
+</svg>

@@ -1,0 +1,38 @@
+<%- include('admin/partials/header', { title: 'Configurações' }) %>
+
+<div class="admin-content">
+  <h1>Configurações</h1>
+
+  <% if (error) { %><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success %></div><% } %>
+
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h2>Informações da Loja</h2>
+    </div>
+    <div class="admin-card-body">
+      <form action="/admin/settings" method="POST" class="admin-form">
+        <div class="form-group">
+          <label for="site_name">Nome do Site</label>
+          <input type="text" id="site_name" name="site_name" value="<%= settings.site_name || 'RYTECH3D' %>">
+        </div>
+        <div class="form-group">
+          <label for="whatsapp_number">Número do WhatsApp (com DDD e país)</label>
+          <input type="text" id="whatsapp_number" name="whatsapp_number" value="<%= settings.whatsapp_number || '5562992371986' %>" placeholder="5562992371986">
+          <small class="form-help">Formato: 55 + DDD + número. Ex: 5562992371986</small>
+        </div>
+        <div class="form-group">
+          <label for="instagram_url">URL do Instagram</label>
+          <input type="url" id="instagram_url" name="instagram_url" value="<%= settings.instagram_url || 'https://instagram.com/rytech3d' %>">
+        </div>
+        <div class="form-group">
+          <label for="whatsapp_message">Mensagem Padrão do WhatsApp</label>
+          <textarea id="whatsapp_message" name="whatsapp_message" rows="2"><%= settings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.' %></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Configurações</button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('admin/partials/footer') %>

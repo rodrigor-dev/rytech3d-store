@@ -1,0 +1,110 @@
+<%- include('partials/header', { title: 'Carrinho' }) %>
+
+<section class="section cart-section">
+  <div class="container">
+    <h1>Seu Carrinho</h1>
+    <div class="cart-container">
+      <div class="cart-items" id="cartItems">
+        <div class="cart-loading">Carregando carrinho...</div>
+      </div>
+      <div class="cart-sidebar">
+        <div class="cart-summary">
+          <h3>Resumo</h3>
+          <div class="cart-summary-row">
+            <span>Itens</span>
+            <span id="cartItemsCount">0</span>
+          </div>
+          <hr>
+          <div class="cart-summary-row cart-total">
+            <span>Total</span>
+            <span id="cartTotal">R$ 0,00</span>
+          </div>
+          <a href="/checkout" class="btn btn-primary btn-block btn-lg" id="checkoutBtn">
+            <i class="fas fa-check"></i> Finalizar Pedido
+          </a>
+          <a href="/" class="btn btn-outline btn-block">Continuar Comprando</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+function renderCart() {
+  const cart = getCart();
+  const container = document.getElementById('cartItems');
+  const totalEl = document.getElementById('cartTotal');
+  const countEl = document.getElementById('cartItemsCount');
+  const checkoutBtn = document.getElementById('checkoutBtn');
+
+  if (cart.length === 0) {
+    container.innerHTML = `
+      <div class="empty-cart">
+        <i class="fas fa-shopping-cart"></i>
+        <h2>Carrinho vazio</h2>
+        <p>Adicione produtos para começar suas compras.</p>
+        <a href="/" class="btn btn-primary">Ver Produtos</a>
+      </div>
+    `;
+    totalEl.textContent = 'R$ 0,00';
+    countEl.textContent = '0';
+    checkoutBtn.href = '/';
+    return;
+  }
+
+  let html = '';
+  let total = 0;
+  let count = 0;
+
+  cart.forEach((item, index) => {
+    const subtotal = item.price * item.quantity;
+    total += subtotal;
+    count += item.quantity;
+    
+    html += `
+      <div class="cart-item">
+        <img src="${item.image || '/uploads/products/default.svg'}" alt="${item.name}" onerror="this.src='/uploads/products/default.svg'">
+        <div class="cart-item-info">
+          <h4>${item.name}</h4>
+          <p class="cart-item-price">R$ ${item.price.toFixed(2).replace('.', ',')}</p>
+        </div>
+        <div class="cart-item-qty">
+          <button class="qty-btn" onclick="updateCartQty(${index}, -1)">-</button>
+          <span>${item.quantity}</span>
+          <button class="qty-btn" onclick="updateCartQty(${index}, 1)">+</button>
+        </div>
+        <div class="cart-item-total">R$ ${subtotal.toFixed(2).replace('.', ',')}</div>
+        <button class="cart-item-remove" onclick="removeFromCart(${index})"><i class="fas fa-trash"></i></button>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  totalEl.textContent = `R$ ${total.toFixed(2).replace('.', ',')}`;
+  countEl.textContent = count;
+}
+
+function updateCartQty(index, delta) {
+  const cart = getCart();
+  cart[index].quantity += delta;
+  if (cart[index].quantity < 1) {
+    cart.splice(index, 1);
+  }
+  if (cart[index] && cart[index].quantity > 99) cart[index].quantity = 99;
+  saveCart(cart);
+  renderCart();
+  updateCartBadge();
+}
+
+function removeFromCart(index) {
+  const cart = getCart();
+  cart.splice(index, 1);
+  saveCart(cart);
+  renderCart();
+  updateCartBadge();
+}
+
+document.addEventListener('DOMContentLoaded', renderCart);
+</script>
+
+<%- include('partials/footer') %>

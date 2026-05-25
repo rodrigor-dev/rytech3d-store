@@ -1,0 +1,75 @@
+<%- include('admin/partials/header', { title: product ? 'Editar Produto' : 'Novo Produto' }) %>
+
+<div class="admin-content">
+  <h1><%= product ? 'Editar Produto' : 'Novo Produto' %></h1>
+
+  <% if (error) { %>
+    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div>
+  <% } %>
+
+  <div class="admin-card">
+    <div class="admin-card-body">
+      <form action="/admin/products/save" method="POST" enctype="multipart/form-data" class="admin-form">
+        <% if (product && product.id) { %>
+          <input type="hidden" name="id" value="<%= product.id %>">
+          <input type="hidden" name="current_image" value="<%= product.image_url %>">
+        <% } %>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="name">Nome do Produto *</label>
+            <input type="text" id="name" name="name" value="<%= product ? product.name : '' %>" required>
+          </div>
+          <div class="form-group">
+            <label for="category">Categoria</label>
+            <input type="text" id="category" name="category" value="<%= product ? product.category : 'Geral' %>" placeholder="Ex: Canecas, Chaveiros...">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="description">Descrição *</label>
+          <textarea id="description" name="description" rows="4" required><%= product ? product.description : '' %></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="price">Preço (R$) *</label>
+            <input type="number" id="price" name="price" step="0.01" min="0" value="<%= product ? product.price : '' %>" required>
+          </div>
+          <div class="form-group">
+            <label for="delivery_time">Prazo de Entrega *</label>
+            <input type="text" id="delivery_time" name="delivery_time" value="<%= product ? product.delivery_time : '' %>" placeholder="Ex: 5-7 dias úteis" required>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="image">Imagem do Produto</label>
+            <input type="file" id="image" name="image" accept="image/jpeg,image/png,image/gif,image/webp">
+            <small class="form-help">Formatos: JPEG, PNG, GIF, WebP. Máx: 5MB</small>
+          </div>
+          <div class="form-group form-check">
+            <label class="checkbox-label">
+              <input type="checkbox" name="featured" value="1" <%= product && product.featured ? 'checked' : '' %>>
+              <span>Produto em Destaque</span>
+            </label>
+          </div>
+        </div>
+
+        <% if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') { %>
+          <div class="current-image">
+            <p>Imagem atual:</p>
+            <img src="<%= product.image_url %>" alt="<%= product.name %>" style="max-width: 200px; border-radius: 8px;">
+          </div>
+        <% } %>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button>
+          <a href="/admin/products" class="btn btn-outline">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<%- include('admin/partials/footer') %>

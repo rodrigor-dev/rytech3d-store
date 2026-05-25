@@ -1,0 +1,87 @@
+<%- include('admin/partials/header', { title: 'Dashboard' }) %>
+
+<div class="admin-content">
+  <h1>Dashboard</h1>
+  
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-icon blue"><i class="fas fa-cube"></i></div>
+      <div class="stat-info">
+        <span class="stat-value"><%= totalProducts %></span>
+        <span class="stat-label">Produtos</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon green"><i class="fas fa-shopping-cart"></i></div>
+      <div class="stat-info">
+        <span class="stat-value"><%= totalOrders %></span>
+        <span class="stat-label">Pedidos</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon orange"><i class="fas fa-clock"></i></div>
+      <div class="stat-info">
+        <span class="stat-value"><%= pendingOrders %></span>
+        <span class="stat-label">Pendentes</span>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon purple"><i class="fas fa-users"></i></div>
+      <div class="stat-info">
+        <span class="stat-value"><%= totalCustomers %></span>
+        <span class="stat-label">Clientes</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="stats-grid">
+    <div class="stat-card stat-card-wide">
+      <div class="stat-icon gold"><i class="fas fa-dollar-sign"></i></div>
+      <div class="stat-info">
+        <span class="stat-value stat-large">R$ <%= totalRevenue.toFixed(2).replace('.', ',') %></span>
+        <span class="stat-label">Receita Total</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h2>Pedidos Recentes</h2>
+      <a href="/admin/orders" class="btn btn-small">Ver Todos</a>
+    </div>
+    <div class="admin-card-body">
+      <% if (recentOrders.length === 0) { %>
+        <p class="text-muted">Nenhum pedido ainda.</p>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Data</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% recentOrders.forEach(order => { %>
+                <tr>
+                  <td>#<%= order.id %></td>
+                  <td><%= order.customer_name %></td>
+                  <td>R$ <%= order.total.toFixed(2).replace('.', ',') %></td>
+                  <td><span class="badge badge-<%= order.status %>"><%= order.status === 'pending' ? 'Pendente' : order.status === 'confirmed' ? 'Confirmado' : order.status === 'printing' ? 'Imprimindo' : order.status === 'shipped' ? 'Enviado' : order.status === 'delivered' ? 'Entregue' : 'Cancelado' %></span></td>
+                  <td><%= new Date(order.created_at).toLocaleDateString('pt-BR') %></td>
+                  <td><a href="/admin/orders/<%= order.id %>" class="btn btn-small"><i class="fas fa-eye"></i></a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('admin/partials/footer') %>

@@ -1,0 +1,58 @@
+<%- include('admin/partials/header', { title: 'Pedidos' }) %>
+
+<div class="admin-content">
+  <div class="admin-header">
+    <h1>Pedidos</h1>
+  </div>
+
+  <div class="admin-filters">
+    <a href="/admin/orders" class="filter-btn <%= !currentStatus ? 'active' : '' %>">Todos</a>
+    <a href="/admin/orders?status=pending" class="filter-btn <%= currentStatus === 'pending' ? 'active' : '' %>">Pendentes</a>
+    <a href="/admin/orders?status=confirmed" class="filter-btn <%= currentStatus === 'confirmed' ? 'active' : '' %>">Confirmados</a>
+    <a href="/admin/orders?status=printing" class="filter-btn <%= currentStatus === 'printing' ? 'active' : '' %>">Imprimindo</a>
+    <a href="/admin/orders?status=shipped" class="filter-btn <%= currentStatus === 'shipped' ? 'active' : '' %>">Enviados</a>
+    <a href="/admin/orders?status=delivered" class="filter-btn <%= currentStatus === 'delivered' ? 'active' : '' %>">Entregues</a>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-body">
+      <% if (orders.length === 0) { %>
+        <div class="empty-state">
+          <i class="fas fa-shopping-cart"></i>
+          <h3>Nenhum pedido encontrado</h3>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Cliente</th>
+                <th>Itens</th>
+                <th>Total</th>
+                <th>Status</th>
+                <th>Data</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% orders.forEach(order => { %>
+                <tr>
+                  <td>#<%= order.id %></td>
+                  <td><%= order.customer_name || '—' %></td>
+                  <td><%= order.total_items || '—' %></td>
+                  <td>R$ <%= order.total.toFixed(2).replace('.', ',') %></td>
+                  <td><span class="badge badge-<%= order.status %>"><%= order.status === 'pending' ? 'Pendente' : order.status === 'confirmed' ? 'Confirmado' : order.status === 'printing' ? 'Imprimindo' : order.status === 'shipped' ? 'Enviado' : order.status === 'delivered' ? 'Entregue' : 'Cancelado' %></span></td>
+                  <td><%= new Date(order.created_at).toLocaleDateString('pt-BR') %></td>
+                  <td><a href="/admin/orders/<%= order.id %>" class="btn btn-small"><i class="fas fa-eye"></i></a></td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('admin/partials/footer') %>

@@ -1,0 +1,145 @@
+<%- include('partials/header', { title: 'Início' }) %>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-text">
+      <span class="hero-badge">Impressão 3D Profissional</span>
+      <h1 class="hero-title">Transforme suas ideias em <span class="gradient-text">realidade</span></h1>
+      <p class="hero-subtitle">Produtos personalizados impressos em 3D com alta qualidade e acabamento profissional. Cada peça é feita sob encomenda especialmente para você.</p>
+      <div class="hero-actions">
+        <a href="#produtos" class="btn btn-primary">
+          <i class="fas fa-cube"></i> Ver Produtos
+        </a>
+        <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=<%= encodeURIComponent(siteSettings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.') %>" target="_blank" class="btn btn-outline">
+          <i class="fab fa-whatsapp"></i> Fale Conosco
+        </a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><span class="stat-num">500+</span><span class="stat-label">Peças Produzidas</span></div>
+        <div class="stat"><span class="stat-num">98%</span><span class="stat-label">Clientes Satisfeitos</span></div>
+        <div class="stat"><span class="stat-num">7</span><span class="stat-label">Dias úteis*</span></div>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-3d-model">
+        <div class="floating-cube">
+          <div class="cube-face front"></div>
+          <div class="cube-face back"></div>
+          <div class="cube-face right"></div>
+          <div class="cube-face left"></div>
+          <div class="cube-face top"></div>
+          <div class="cube-face bottom"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 100" preserveAspectRatio="none">
+      <path d="M0,50 C320,100 720,0 1440,50 L1440,100 L0,100 Z" fill="var(--bg-primary)"></path>
+    </svg>
+  </div>
+</section>
+
+<section class="section" id="produtos">
+  <div class="container">
+    <div class="section-header">
+      <span class="section-tag">Nossos Produtos</span>
+      <h2 class="section-title">Produtos <span class="gradient-text">Disponíveis</span></h2>
+      <p class="section-desc">Todos os produtos são feitos sob encomenda com prazo de entrega informado.</p>
+    </div>
+
+    <div class="filter-bar">
+      <div class="filter-categories">
+        <a href="/#produtos" class="filter-btn <%= selectedCategory === 'Todos' || !selectedCategory ? 'active' : '' %>">Todos</a>
+        <% categories.forEach(cat => { %>
+          <a href="/?category=<%= encodeURIComponent(cat) %>#produtos" class="filter-btn <%= selectedCategory === cat ? 'active' : '' %>"><%= cat %></a>
+        <% }) %>
+      </div>
+      <form class="search-bar" action="/#produtos" method="GET">
+        <i class="fas fa-search"></i>
+        <input type="text" name="search" placeholder="Buscar produtos..." value="<%= search %>">
+        <button type="submit" class="btn btn-small">Buscar</button>
+      </form>
+    </div>
+
+    <% if (products.length === 0) { %>
+      <div class="empty-state">
+        <i class="fas fa-box-open"></i>
+        <h3>Nenhum produto encontrado</h3>
+        <p>Tente buscar por outra categoria ou termo.</p>
+      </div>
+    <% } %>
+
+    <div class="products-grid">
+      <% products.forEach(product => { %>
+        <div class="product-card" data-id="<%= product.id %>">
+          <div class="product-image">
+            <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+            <% if (product.featured) { %><span class="product-badge">Destaque</span><% } %>
+            <div class="product-overlay">
+              <a href="/product/<%= product.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>
+              <button class="btn btn-small btn-accent add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
+                <i class="fas fa-cart-plus"></i>
+              </button>
+            </div>
+          </div>
+          <div class="product-info">
+            <span class="product-category"><%= product.category %></span>
+            <h3 class="product-name"><%= product.name %></h3>
+            <div class="product-delivery">
+              <i class="fas fa-clock"></i> <span><%= product.delivery_time %></span>
+            </div>
+            <div class="product-footer">
+              <span class="product-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></span>
+              <button class="btn btn-sm btn-primary add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
+                <i class="fas fa-cart-plus"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="section section-dark">
+  <div class="container">
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-cube"></i></div>
+        <h3>Impressão 3D Profissional</h3>
+        <p>Utilizamos filamentos de alta qualidade e impressoras modernas para garantir o melhor resultado.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-paint-brush"></i></div>
+        <h3>Totalmente Personalizável</h3>
+        <p>Cada produto é feito sob encomenda e pode ser personalizado conforme sua preferência.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-truck"></i></div>
+        <h3>Prazo de Entrega</h3>
+        <p>Produzimos com agilidade sem comprometer a qualidade. Consulte o prazo em cada produto.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon"><i class="fas fa-shield-alt"></i></div>
+        <h3>Qualidade Garantida</h3>
+        <p>Seu produto passa por controle de qualidade antes de ser enviado. Satisfação garantida!</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="section cta-section">
+  <div class="container">
+    <div class="cta-box">
+      <h2>Tem uma ideia em mente?</h2>
+      <p>Quer um produto personalizado? Fale conosco no WhatsApp e faça seu orçamento sem compromisso!</p>
+      <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=<%= encodeURIComponent(siteSettings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.') %>" target="_blank" class="btn btn-accent btn-lg">
+        <i class="fab fa-whatsapp"></i> Fale Conosco no WhatsApp
+      </a>
+    </div>
+  </div>
+</section>
+
+<%- include('partials/footer') %>
