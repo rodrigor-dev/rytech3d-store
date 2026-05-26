@@ -16,16 +16,19 @@ router.get('/', asyncHandler(async (req, res) => {
     }
     const catRows = await prepare('SELECT DISTINCT category FROM products WHERE active = 1 ORDER BY category').all();
     const categories = catRows.map(c => c.category);
+    const featuredProducts = await prepare('SELECT * FROM products WHERE active = 1 AND featured = 1 ORDER BY created_at DESC LIMIT 4').all();
     const settings = await prepare('SELECT key, value FROM settings').all();
     const settingsMap = {};
     settings.forEach(s => settingsMap[s.key] = s.value);
+    const bannerImg = settingsMap.banner_url || '';
 
     res.render('index', {
       products,
       categories,
       selectedCategory: category || 'Todos',
       search: search || '',
-      settings: settingsMap
+      settings: settingsMap,
+      featuredProducts
     });
 }));
 

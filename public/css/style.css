@@ -1836,3 +1836,14 @@ img { max-width: 100%; height: auto; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .confirmation-actions { flex-direction: column; }
 }
+
+/* Banner */
+.banner-section { padding: 0 0 60px; margin-top: -20px; }
+.banner-card { display: flex; align-items: center; justify-content: space-between; background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary)); border: 1px solid var(--border); border-radius: var(--radius); padding: 48px; overflow: hidden; position: relative; }
+.banner-card::before { content: ''; position: absolute; top: -50%; right: -20%; width: 400px; height: 400px; background: radial-gradient(circle, rgba(0,212,170,0.06) 0%, transparent 70%); pointer-events: none; }
+.banner-content { max-width: 500px; position: relative; z-index: 1; }
+.banner-tag { display: inline-block; background: rgba(0,212,170,0.1); color: var(--accent); font-size: 0.8rem; font-weight: 600; padding: 4px 12px; border-radius: 20px; margin-bottom: 12px; text-transform: uppercase; letter-spacing: .5px; }
+.banner-title { font-size: 2rem; font-weight: 800; margin-bottom: 12px; }
+.banner-text { color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 20px; }
+.banner-visual { font-size: 6rem; color: var(--accent); opacity: .15; position: relative; z-index: 1; }
+@media (max-width: 640px) { .banner-card { flex-direction: column; text-align: center; padding: 32px 24px; } .banner-visual { display: none; } }
