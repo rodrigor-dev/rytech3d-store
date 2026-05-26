@@ -1,7 +1,6 @@
 const { getSettings } = require('../database');
 
 function formatOrderMessage(order, user, items) {
-  const settings = getSettings();
   const lines = [];
   lines.push('🛒 *NOVO PEDIDO - RYTECH3D*');
   lines.push('━━━━━━━━━━━━━━━━━━');
@@ -31,19 +30,19 @@ function formatOrderMessage(order, user, items) {
   }
   lines.push('');
   lines.push('✅ *Aguardando confirmação!*');
-  lines.push(`🔗 ${settings.site_url || 'http://localhost:3000'}/admin/orders/${order.id}`);
+  lines.push(`🔗 ${order.site_url || 'http://localhost:3000'}/admin/orders/${order.id}`);
   return lines.join('\n');
 }
 
 async function sendWhatsAppNotification(order, user, items) {
-  const settings = getSettings();
+  const settings = await getSettings();
   const phone = settings.whatsapp_number;
   if (!phone) {
     console.log('WhatsApp não configurado. Pulando notificação.');
     return;
   }
 
-  const message = formatOrderMessage(order, user, items);
+  const message = formatOrderMessage({ ...order, site_url: settings.site_url }, user, items);
   const encodedMessage = encodeURIComponent(message);
   const url = `https://wa.me/${phone}?text=${encodedMessage}`;
 
