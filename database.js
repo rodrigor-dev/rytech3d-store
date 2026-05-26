@@ -1,30 +1,117 @@
-const initSqlJs = require('sql.js');
 const path = require('path');
 const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'data', 'rytech3d.db');
-const dir = path.join(__dirname, 'data');
-if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+const isPg = () => !!process.env.DATABASE_URL;
 
-let _db = null;
+let _sqlite = null;
+let _pool = null;
+let _txClient = null;
 
-function getDb() {
-  if (!_db) throw new Error('Database not initialized');
-  return _db;
+// ─── PostgreSQL ──────────────────────────────────────────────────────────────
+
+function convertSql(sql) {
+  let i = 0;
+  sql = sql.replace(/\?/g, () => `$${++i}`);
+  sql = sql.replace(
+    /INSERT OR REPLACE INTO (\w+)\s*\(([^)]+)\)\s*VALUES\s*\(([^)]+)\)/gi,
+    (_, table, cols, vals) => {
+      const c = cols.split(',').map(s => s.trim());
+      const v = vals.split(',').map(s => s.trim());
+      if (table.toLowerCase() === 'settings') {
+        const set = c.slice(1).map((col, idx) => `${col} = ${v[idx + 1]}`).join(', ');
+        return `INSERT INTO ${table} (${cols}) VALUES (${vals}) ON CONFLICT (key) DO UPDATE SET ${set}`;
+      }
+      return `INSERT INTO ${table} (${cols}) VALUES (${vals}) ON CONFLICT DO NOTHING`;
+    }
+  );
+  return sql;
 }
 
-function saveToFile() {
+function isInsert(sql) {
+  return /^\s*INSERT\s/i.test(sql);
+}
+
+async function pgQuery(sql, params) {
+  const client = _txClient || _pool;
+  const text = convertSql(sql);
+  const flat = params.length > 0 && Array.isArray(params[0]) ? params[0] : params;
+  if (isInsert(sql) && _pool) {
+    const result = await client.query(`${text} RETURNING id`, flat);
+    return result;
+  }
+  return client.query(text, flat);
+}
+
+function pgPrepare(sql) {
+  return {
+    run: async (...params) => {
+      const r = await pgQuery(sql, params);
+      return { lastInsertRowid: r.rows[0]?.id || null, changes: r.rowCount || 0 };
+    },
+    get: async (...params) => {
+      const r = await pgQuery(sql, params);
+      return r.rows[0] || undefined;
+    },
+    all: async (...params) => {
+      const r = await pgQuery(sql, params);
+      return r.rows;
+    }
+  };
+}
+
+async function pgExec(sql) {
+  const client = _txClient || _pool;
+  await client.query(sql);
+}
+
+function pgTransaction(fn) {
+  return async (...args) => {
+    const client = await _pool.connect();
+    _txClient = client;
+    try {
+      await client.query('BEGIN');
+      const result = await fn(...args);
+      await client.query('COMMIT');
+      return result;
+    } catch (err) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw err;
+    } finally {
+      client.release();
+      _txClient = null;
+    }
+  };
+}
+
+// ─── SQLite ──────────────────────────────────────────────────────────────────
+
+function sqliteGetDb() {
+  if (!_sqlite) throw new Error('Database not initialized');
+  return _sqlite;
+}
+
+function sqliteSave() {
   try {
-    if (!_db) return;
-    const data = _db.export();
-    fs.writeFileSync(dbPath, Buffer.from(data));
+    if (!_sqlite) return;
+    const dir = path.join(__dirname, 'data');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const data = _sqlite.export();
+    fs.writeFileSync(path.join(__dirname, 'data', 'rytech3d.db'), Buffer.from(data));
   } catch (err) {
     console.error('Erro ao salvar banco:', err.message);
   }
 }
 
-function execPrepare(sql, method, params) {
-  const db = getDb();
+function sqliteGetLastRowid() {
+  try {
+    const r = _sqlite.exec("SELECT last_insert_rowid()");
+    if (r && r.length > 0 && r[0].values && r[0].values.length > 0) return r[0].values[0][0];
+  } catch {}
+  return 0;
+}
+
+function sqliteExecPrepare(sql, method, params) {
+  const db = sqliteGetDb();
   let stmt = null;
   try {
     stmt = db.prepare(sql);
@@ -32,17 +119,14 @@ function execPrepare(sql, method, params) {
   } catch (err) {
     throw new Error(`SQL prepare error: ${err.message}\nSQL: ${sql}`);
   }
-
-  const flatParams = params.length > 0 && Array.isArray(params[0]) ? params[0] : params;
-
+  const flat = params.length > 0 && Array.isArray(params[0]) ? params[0] : params;
   try {
-    if (flatParams.length > 0) stmt.bind(flatParams);
-
+    if (flat.length > 0) stmt.bind(flat);
     if (method === 'run') {
-      while (stmt.step()) { }
+      while (stmt.step()) {}
       stmt.free();
-      saveToFile();
-      return { lastInsertRowid: getLastInsertRowid(), changes: 0 };
+      sqliteSave();
+      return { lastInsertRowid: sqliteGetLastRowid(), changes: 0 };
     } else if (method === 'get') {
       let result = undefined;
       if (stmt.step()) result = stmt.getAsObject();
@@ -60,192 +144,228 @@ function execPrepare(sql, method, params) {
   }
 }
 
-function prepare(sql) {
+function sqlitePrepare(sql) {
   return {
-    run: (...params) => execPrepare(sql, 'run', params),
-    get: (...params) => execPrepare(sql, 'get', params),
-    all: (...params) => execPrepare(sql, 'all', params)
+    run: (...params) => Promise.resolve(sqliteExecPrepare(sql, 'run', params)),
+    get: (...params) => Promise.resolve(sqliteExecPrepare(sql, 'get', params)),
+    all: (...params) => Promise.resolve(sqliteExecPrepare(sql, 'all', params))
   };
 }
 
-function getLastInsertRowid() {
-  try {
-    const result = _db.exec("SELECT last_insert_rowid()");
-    if (result && result.length > 0 && result[0].values && result[0].values.length > 0) {
-      return result[0].values[0][0];
-    }
-  } catch {}
-  return 0;
+function sqliteExec(sql) {
+  sqliteGetDb().exec(sql);
+  sqliteSave();
 }
 
-function exec(sql) {
-  try {
-    _db.exec(sql);
-    saveToFile();
-  } catch (err) {
-    throw new Error(`SQL exec error: ${err.message}`);
-  }
-}
-
-function transaction(fn) {
-  return function (...args) {
+function sqliteTransaction(fn) {
+  return (...args) => {
     try {
-      exec('BEGIN TRANSACTION');
-      const result = fn.apply(this, args);
-      exec('COMMIT');
+      sqliteExec('BEGIN TRANSACTION');
+      const result = fn(...args);
+      sqliteExec('COMMIT');
       return result;
     } catch (err) {
-      try { exec('ROLLBACK'); } catch {}
+      try { sqliteExec('ROLLBACK'); } catch {}
       throw err;
     }
   };
 }
 
-async function initDatabase() {
-  const bcrypt = require('bcryptjs');
-  const SQL = await initSqlJs({
-    locateFile: file => path.join(__dirname, 'node_modules', 'sql.js', 'dist', file)
-  });
+// ─── Unified API ─────────────────────────────────────────────────────────────
 
-  if (fs.existsSync(dbPath)) {
-    const buffer = fs.readFileSync(dbPath);
-    _db = new SQL.Database(buffer);
-    console.log('Banco de dados carregado do arquivo.');
-  } else {
-    _db = new SQL.Database();
-    console.log('Novo banco de dados criado.');
-  }
-
-  exec(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    full_name TEXT NOT NULL,
-    cpf TEXT NOT NULL UNIQUE,
-    email TEXT NOT NULL UNIQUE,
-    password TEXT NOT NULL,
-    phone TEXT NOT NULL,
-    street TEXT NOT NULL,
-    number TEXT NOT NULL,
-    complement TEXT DEFAULT '',
-    neighborhood TEXT NOT NULL,
-    city TEXT NOT NULL,
-    state TEXT NOT NULL,
-    zip_code TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  exec(`CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    price REAL NOT NULL,
-    delivery_time TEXT NOT NULL,
-    category TEXT DEFAULT 'Geral',
-    image_url TEXT DEFAULT '/uploads/products/default.svg',
-    video_url TEXT DEFAULT '',
-    featured INTEGER DEFAULT 0,
-    active INTEGER DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  try { exec(`ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''`); } catch {}
-
-  exec(`CREATE TABLE IF NOT EXISTS product_images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    image_url TEXT NOT NULL,
-    sort_order INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  )`);
-
-  exec(`CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    total REAL NOT NULL,
-    status TEXT DEFAULT 'pending',
-    payment_method TEXT DEFAULT 'pending',
-    notes TEXT DEFAULT '',
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id)
-  )`);
-
-  exec(`CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL,
-    product_name TEXT NOT NULL,
-    quantity INTEGER NOT NULL,
-    price REAL NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id)
-  )`);
-
-  exec(`CREATE TABLE IF NOT EXISTS admins (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT NOT NULL UNIQUE,
-    email TEXT DEFAULT '',
-    password TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  )`);
-
-  exec(`CREATE TABLE IF NOT EXISTS settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  )`);
-
-  const adminCount = prepare('SELECT COUNT(*) as count FROM admins').get();
-  if (adminCount.count === 0) {
-    const hash1 = bcrypt.hashSync('Rytech3d@2026', 10);
-    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('admin', '', hash1);
-    const hash2 = bcrypt.hashSync('rytech2026', 10);
-    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', hash2);
-    console.log('🔑 Admin padrão: admin / Rytech3d@2026');
-    console.log('🔑 Admin email: rodrigo@admin.com / rytech2026');
-  }
-
-  const emailAdmin = prepare('SELECT id FROM admins WHERE email = ?').get('rodrigo@admin.com');
-  if (!emailAdmin) {
-    const hash = bcrypt.hashSync('rytech2026', 10);
-    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', hash);
-    console.log('📧 Admin por email adicionado: rodrigo@admin.com / rytech2026');
-  }
-
-  const productCount = prepare('SELECT COUNT(*) as count FROM products').get();
-  if (productCount.count === 0) {
-    console.log('📦 Banco sem produtos. Recriando produtos padrão...');
-    const insert = prepare('INSERT INTO products (name, description, price, delivery_time, category, image_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    insert.run('Caneca Personalizada 3D', 'Caneca personalizada impressa em 3D com design exclusivo. Ideal para presente ou uso pessoal. Material PLA de alta qualidade.', 49.90, '5-7 dias úteis', 'Canecas', '/uploads/products/default.svg', 1, 1);
-    insert.run('Porta-Canetas Geek', 'Porta-canetas temático com design moderno. Perfeito para organizar sua mesa de trabalho ou estudos.', 35.90, '3-5 dias úteis', 'Organizadores', '/uploads/products/default.svg', 1, 1);
-    insert.run('Action Figure Personalizada', 'Action figure impressa em 3D com altos detalhes. Pode ser personalizada conforme sua referência.', 89.90, '7-10 dias úteis', 'Figuras', '/uploads/products/default.svg', 1, 1);
-    insert.run('Suporte para Celular', 'Suporte ergonômico para celular, compatível com todos os modelos. Design compacto e resistente.', 25.90, '2-4 dias úteis', 'Acessórios', '/uploads/products/default.svg', 1, 1);
-    insert.run('Chaveiro Personalizado', 'Chaveiro 3D personalizado com seu nome ou logo. Acabamento perfeito e durável.', 19.90, '2-3 dias úteis', 'Chaveiros', '/uploads/products/default.svg', 1, 1);
-    insert.run('Vaso Decorativo', 'Vaso decorativo impresso em 3D com design moderno e minimalista. Disponível em várias cores.', 45.90, '4-6 dias úteis', 'Decoração', '/uploads/products/default.svg', 1, 1);
-    console.log('📦 Produtos padrão criados com sucesso!');
-  }
-
-  const settingsCount = prepare('SELECT COUNT(*) as count FROM settings').get();
-  if (settingsCount.count === 0) {
-    const insert = prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
-    insert.run('whatsapp_number', '5562992371986');
-    insert.run('instagram_url', 'https://instagram.com/rytech3d');
-    insert.run('whatsapp_message', 'Olá! Gostaria de fazer um pedido na RYTECH3D.');
-    insert.run('site_name', 'RYTECH3D');
-    insert.run('site_url', process.env.SITE_URL || 'http://localhost:3000');
-    insert.run('logo_url', '');
-  }
-
-  saveToFile();
-  console.log('✅ Banco de dados inicializado com sucesso!');
+function prepare(sql) {
+  return isPg() ? pgPrepare(sql) : sqlitePrepare(sql);
 }
 
-function getSettings() {
-  const rows = prepare('SELECT key, value FROM settings').all();
+function exec(sql) {
+  if (isPg()) return pgExec(sql);
+  else { sqliteExec(sql); return Promise.resolve(); }
+}
+
+function transaction(fn) {
+  if (isPg()) return pgTransaction(fn);
+  else {
+    const wrapped = sqliteTransaction(fn);
+    return (...args) => Promise.resolve(wrapped(...args));
+  }
+}
+
+async function getSettings() {
+  const rows = await prepare('SELECT key, value FROM settings').all();
   const map = {};
   rows.forEach(r => map[r.key] = r.value);
   return map;
 }
 
-module.exports = { initDatabase, getDb, prepare, exec, transaction, saveToFile, getSettings };
+// ─── Schema ──────────────────────────────────────────────────────────────────
+
+const SCHEMA = isPg() ? `
+  CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY, full_name TEXT NOT NULL, cpf TEXT NOT NULL UNIQUE,
+    email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, phone TEXT NOT NULL,
+    street TEXT NOT NULL, number TEXT NOT NULL, complement TEXT DEFAULT '',
+    neighborhood TEXT NOT NULL, city TEXT NOT NULL, state TEXT NOT NULL,
+    zip_code TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS products (
+    id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL,
+    price REAL NOT NULL, delivery_time TEXT NOT NULL, category TEXT DEFAULT 'Geral',
+    image_url TEXT DEFAULT '/uploads/products/default.svg',
+    video_url TEXT DEFAULT '', featured INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS product_images (
+    id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    image_url TEXT NOT NULL, sort_order INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS orders (
+    id SERIAL PRIMARY KEY, user_id INTEGER NOT NULL REFERENCES users(id),
+    total REAL NOT NULL, status TEXT DEFAULT 'pending',
+    payment_method TEXT DEFAULT 'pending', notes TEXT DEFAULT '',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS order_items (
+    id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+    product_id INTEGER NOT NULL REFERENCES products(id),
+    product_name TEXT NOT NULL, quantity INTEGER NOT NULL, price REAL NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS admins (
+    id SERIAL PRIMARY KEY, username TEXT NOT NULL UNIQUE,
+    email TEXT DEFAULT '', password TEXT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+` : `
+  CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, full_name TEXT NOT NULL,
+    cpf TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
+    phone TEXT NOT NULL, street TEXT NOT NULL, number TEXT NOT NULL,
+    complement TEXT DEFAULT '', neighborhood TEXT NOT NULL, city TEXT NOT NULL,
+    state TEXT NOT NULL, zip_code TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
+    description TEXT NOT NULL, price REAL NOT NULL, delivery_time TEXT NOT NULL,
+    category TEXT DEFAULT 'Geral', image_url TEXT DEFAULT '/uploads/products/default.svg',
+    video_url TEXT DEFAULT '', featured INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS product_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
+    image_url TEXT NOT NULL, sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  );
+  CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL,
+    total REAL NOT NULL, status TEXT DEFAULT 'pending',
+    payment_method TEXT DEFAULT 'pending', notes TEXT DEFAULT '',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+  CREATE TABLE IF NOT EXISTS order_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL, product_name TEXT NOT NULL,
+    quantity INTEGER NOT NULL, price REAL NOT NULL,
+    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+  );
+  CREATE TABLE IF NOT EXISTS admins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE,
+    email TEXT DEFAULT '', password TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+`;
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+
+async function initDatabase() {
+  const bcrypt = require('bcryptjs');
+  const dbPath = path.join(__dirname, 'data', 'rytech3d.db');
+
+  if (isPg()) {
+    const { Pool } = require('pg');
+    _pool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
+      max: 5
+    });
+    await _pool.query('SELECT 1');
+    console.log('🐘 Conectado ao PostgreSQL');
+    await _pool.query(SCHEMA);
+    console.log('✅ Schema PostgreSQL criado');
+  } else {
+    const initSqlJs = require('sql.js');
+    const SQL = await initSqlJs({
+      locateFile: file => path.join(__dirname, 'node_modules', 'sql.js', 'dist', file)
+    });
+    if (fs.existsSync(dbPath)) {
+      _sqlite = new SQL.Database(fs.readFileSync(dbPath));
+      console.log('📁 SQLite carregado do arquivo.');
+    } else {
+      _sqlite = new SQL.Database();
+      console.log('🆕 Novo banco SQLite criado.');
+    }
+    _sqlite.exec(SCHEMA);
+    try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''"); } catch {}
+    sqliteSave();
+    console.log('✅ Schema SQLite criado');
+  }
+
+  // Seed admins
+  const adminCount = await prepare('SELECT COUNT(*) as count FROM admins').get();
+  if (adminCount.count === 0) {
+    const h1 = bcrypt.hashSync('Rytech3d@2026', 10);
+    const h2 = bcrypt.hashSync('rytech2026', 10);
+    await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('admin', '', h1);
+    await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', h2);
+    console.log('🔑 Admins padrão criados');
+  }
+
+  const emailAdmin = await prepare('SELECT id FROM admins WHERE email = ?').get('rodrigo@admin.com');
+  if (!emailAdmin) {
+    const h = bcrypt.hashSync('rytech2026', 10);
+    await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', h);
+    console.log('📧 Admin email adicionado');
+  }
+
+  // Seed products
+  const productCount = await prepare('SELECT COUNT(*) as count FROM products').get();
+  if (productCount.count === 0) {
+    console.log('📦 Criando produtos padrão...');
+    const p = await prepare('INSERT INTO products (name, description, price, delivery_time, category, image_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    await p.run('Caneca Personalizada 3D', 'Caneca personalizada impressa em 3D com design exclusivo.', 49.90, '5-7 dias úteis', 'Canecas', '/uploads/products/default.svg', 1, 1);
+    await p.run('Porta-Canetas Geek', 'Porta-canetas temático com design moderno.', 35.90, '3-5 dias úteis', 'Organizadores', '/uploads/products/default.svg', 1, 1);
+    await p.run('Action Figure Personalizada', 'Action figure impressa em 3D com altos detalhes.', 89.90, '7-10 dias úteis', 'Figuras', '/uploads/products/default.svg', 1, 1);
+    await p.run('Suporte para Celular', 'Suporte ergonômico para celular.', 25.90, '2-4 dias úteis', 'Acessórios', '/uploads/products/default.svg', 1, 1);
+    await p.run('Chaveiro Personalizado', 'Chaveiro 3D personalizado com seu nome ou logo.', 19.90, '2-3 dias úteis', 'Chaveiros', '/uploads/products/default.svg', 1, 1);
+    await p.run('Vaso Decorativo', 'Vaso decorativo impresso em 3D com design moderno.', 45.90, '4-6 dias úteis', 'Decoração', '/uploads/products/default.svg', 1, 1);
+    console.log('📦 Produtos padrão criados');
+  }
+
+  // Seed settings
+  const settingsCount = await prepare('SELECT COUNT(*) as count FROM settings').get();
+  if (settingsCount.count === 0) {
+    const s = await prepare('INSERT INTO settings (key, value) VALUES (?, ?)');
+    await s.run('whatsapp_number', '5562992371986');
+    await s.run('instagram_url', 'https://instagram.com/rytech3d');
+    await s.run('whatsapp_message', 'Olá! Gostaria de fazer um pedido na RYTECH3D.');
+    await s.run('site_name', 'RYTECH3D');
+    await s.run('site_url', process.env.SITE_URL || 'http://localhost:3000');
+    await s.run('logo_url', '');
+    console.log('⚙️ Configurações padrão criadas');
+  }
+
+  console.log('✅ Banco de dados inicializado!');
+}
+
+module.exports = { initDatabase, prepare, exec, transaction, getSettings };

@@ -36,20 +36,23 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
-app.use((req, res, next) => {
-  const settings = prepare('SELECT key, value FROM settings').all();
-  res.locals.siteSettings = {};
-  settings.forEach(s => res.locals.siteSettings[s.key] = s.value);
-  res.locals.currentPath = req.path;
-  res.locals.currentUser = null;
-
-  const token = req.cookies?.token;
-  if (token) {
-    try {
-      res.locals.currentUser = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
-    } catch {}
+app.use(async (req, res, next) => {
+  try {
+    const settings = await prepare('SELECT key, value FROM settings').all();
+    res.locals.siteSettings = {};
+    settings.forEach(s => res.locals.siteSettings[s.key] = s.value);
+    res.locals.currentPath = req.path;
+    res.locals.currentUser = null;
+    const token = req.cookies?.token;
+    if (token) {
+      try {
+        res.locals.currentUser = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+      } catch {}
+    }
+    next();
+  } catch (err) {
+    next(err);
   }
-  next();
 });
 
 const authRoutes = require('./routes/auth');
