@@ -233,6 +233,41 @@ router.post('/products/save', mixedUpload.fields([
   }
 }));
 
+router.post('/products/delete-image', asyncHandler(async (req, res) => {
+  try {
+    const { product_id, image_url } = req.body;
+    if (!product_id || !image_url) return res.status(400).json({ error: 'Dados incompletos' });
+    const imgPath = path.join(__dirname, '..', 'public', image_url);
+    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    await prepare('DELETE FROM product_images WHERE product_id = ? AND image_url = ?').run(product_id, image_url);
+    const remaining = await prepare('SELECT COUNT(*) as count FROM product_images WHERE product_id = ?').get(product_id);
+    if (remaining.count === 0) {
+      await prepare('UPDATE products SET image_url = ? WHERE id = ?').run('/uploads/products/default.svg', product_id);
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao deletar imagem:', err);
+    res.status(500).json({ error: 'Erro ao deletar imagem.' });
+  }
+}));
+
+router.post('/products/delete-video', asyncHandler(async (req, res) => {
+  try {
+    const { product_id } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'ID do produto obrigatório' });
+    const product = await prepare('SELECT video_url FROM products WHERE id = ?').get(product_id);
+    if (product && product.video_url) {
+      const videoPath = path.join(__dirname, '..', 'public', product.video_url);
+      if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
+    }
+    await prepare('UPDATE products SET video_url = ? WHERE id = ?').run('', product_id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao deletar vídeo:', err);
+    res.status(500).json({ error: 'Erro ao deletar vídeo.' });
+  }
+}));
+
 router.post('/products/toggle-active/:id', asyncHandler(async (req, res) => {
   try {
     const product = await prepare('SELECT active FROM products WHERE id = ?').get(req.params.id);

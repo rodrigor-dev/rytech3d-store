@@ -55,8 +55,9 @@
             <small class="form-help" style="display:block;margin-top:4px">Formatos: MP4, WebM, OGG. Máx: 100MB</small>
           </div>
           <% if (product && product.video_url && !product.video_url.includes('youtube') && !product.video_url.includes('youtu.be')) { %>
-            <div style="margin-top:8px">
+            <div style="margin-top:8px;position:relative;display:inline-block">
               <video width="200" controls><source src="<%= product.video_url %>"></video>
+              <button type="button" class="img-del-btn" onclick="deleteVideo()" title="Remover vídeo" style="top:4px;right:4px"><i class="fas fa-times"></i></button>
             </div>
           <% } %>
         </div>
@@ -87,11 +88,13 @@
               <div class="image-preview-item">
                 <img src="<%= product.image_url %>" alt="<%= product.name %>">
                 <span class="main-badge">Principal</span>
+                <button type="button" class="img-del-btn" onclick="deleteImage('<%= product.image_url %>', true)" title="Remover imagem"><i class="fas fa-times"></i></button>
               </div>
               <% if (product.extraImages) { product.extraImages.forEach(img => { %>
                 <div class="image-preview-item">
                   <img src="<%= img.image_url %>" alt="Foto extra">
                   <input type="hidden" name="existing_images" value="<%= img.image_url %>">
+                  <button type="button" class="img-del-btn" onclick="deleteImage('<%= img.image_url %>', false)" title="Remover imagem"><i class="fas fa-times"></i></button>
                 </div>
               <% }) } %>
             </div>
@@ -151,6 +154,11 @@
         <div class="form-actions">
           <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar</button>
           <a href="/admin/products" class="btn btn-outline">Cancelar</a>
+          <% if (product && product.id) { %>
+            <button type="button" class="btn btn-danger" style="margin-left:auto" onclick="deleteProduct()">
+              <i class="fas fa-trash"></i> Excluir Produto
+            </button>
+          <% } %>
         </div>
       </form>
     </div>
@@ -162,6 +170,8 @@
 .image-preview-item { position: relative; width: 120px; height: 120px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
 .image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
 .main-badge { position: absolute; bottom: 0; left: 0; right: 0; background: var(--accent); color: #000; font-size: 0.7rem; text-align: center; padding: 2px; font-weight: 600; }
+.img-del-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(239,68,68,0.9); color: #fff; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; z-index:2; }
+.img-del-btn:hover { background: var(--red); transform: scale(1.1); }
 </style>
 
 <style>
@@ -210,6 +220,46 @@ function saveVariations() {
     else alert(data.error || 'Erro ao salvar.');
   })
   .catch(() => alert('Erro ao salvar variações.'));
+}
+function deleteImage(url, isMain) {
+  if (!confirm('Remover esta imagem?')) return;
+  const productId = <%= product ? product.id : 'null' %>;
+  fetch('/admin/products/delete-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: productId, image_url: url })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) location.reload();
+    else alert(data.error || 'Erro ao remover imagem');
+  })
+  .catch(() => alert('Erro ao remover imagem.'));
+}
+function deleteVideo() {
+  if (!confirm('Remover este vídeo?')) return;
+  const productId = <%= product ? product.id : 'null' %>;
+  fetch('/admin/products/delete-video', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: productId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) location.reload();
+    else alert(data.error || 'Erro ao remover vídeo');
+  })
+  .catch(() => alert('Erro ao remover vídeo.'));
+}
+function deleteProduct() {
+  if (!confirm('Tem certeza que deseja EXCLUIR este produto permanentemente?')) return;
+  const productId = <%= product ? product.id : 'null' %>;
+  fetch('/admin/products/delete/' + productId, { method: 'POST' })
+  .then(r => {
+    if (r.redirected) window.location = r.url;
+    else window.location = '/admin/products';
+  })
+  .catch(() => alert('Erro ao excluir produto.'));
 }
 </script>
 
