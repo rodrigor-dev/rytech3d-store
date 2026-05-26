@@ -31,9 +31,9 @@
             </thead>
             <tbody>
               <% products.forEach(product => { %>
-                <tr>
+                <tr class="product-row" data-href="/admin/products/edit/<%= product.id %>">
                   <td><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
-                  <td><%= product.name %></td>
+                  <td><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
                   <td><%= product.category %></td>
                   <td>R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
                   <td><%= product.delivery_time %></td>
@@ -60,6 +60,13 @@
 </div>
 
 <script>
+document.querySelectorAll('.product-row').forEach(row => {
+  row.addEventListener('click', function(e) {
+    if (e.target.closest('.toggle-active-btn') || e.target.closest('.actions-cell') || e.target.closest('a')) return;
+    window.location = this.dataset.href;
+  });
+});
+
 document.querySelectorAll('.toggle-active-btn').forEach(btn => {
   btn.addEventListener('click', async function() {
     const id = this.dataset.id;
@@ -76,5 +83,12 @@ document.querySelectorAll('.toggle-active-btn').forEach(btn => {
   });
 });
 </script>
+
+<style>
+.product-row { cursor: pointer; }
+.product-row:hover { background: rgba(0,212,170,0.03); }
+.product-name-link { color: var(--accent); font-weight: 500; text-decoration: none; }
+.product-name-link:hover { text-decoration: underline; }
+</style>
 
 <%- include('partials/footer') %>

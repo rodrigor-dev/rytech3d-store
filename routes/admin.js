@@ -48,7 +48,7 @@ const upload = multer({
 });
 
 const mixedUpload = multer({
-  storage: videoStorage,
+  storage,
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     if (file.fieldname === 'images') {
