@@ -28,7 +28,7 @@ function convertSql(sql) {
 }
 
 function isInsert(sql) {
-  return /^\s*INSERT\s/i.test(sql);
+  return /^\s*INSERT\s(?!OR\sREPLACE)/i.test(sql);
 }
 
 async function pgQuery(sql, params) {
