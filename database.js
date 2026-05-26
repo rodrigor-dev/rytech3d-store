@@ -174,6 +174,7 @@ async function initDatabase() {
   exec(`CREATE TABLE IF NOT EXISTS admins (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     username TEXT NOT NULL UNIQUE,
+    email TEXT DEFAULT '',
     password TEXT NOT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
@@ -185,9 +186,19 @@ async function initDatabase() {
 
   const adminCount = prepare('SELECT COUNT(*) as count FROM admins').get();
   if (adminCount.count === 0) {
-    const hash = bcrypt.hashSync('Rytech3d@2026', 10);
-    prepare('INSERT INTO admins (username, password) VALUES (?, ?)').run('admin', hash);
-    console.log('🔑 Admin padrão criado: admin / Rytech3d@2026');
+    const hash1 = bcrypt.hashSync('Rytech3d@2026', 10);
+    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('admin', '', hash1);
+    const hash2 = bcrypt.hashSync('rytech2026', 10);
+    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', hash2);
+    console.log('🔑 Admin padrão: admin / Rytech3d@2026');
+    console.log('🔑 Admin email: rodrigo@admin.com / rytech2026');
+  }
+
+  const emailAdmin = prepare('SELECT id FROM admins WHERE email = ?').get('rodrigo@admin.com');
+  if (!emailAdmin) {
+    const hash = bcrypt.hashSync('rytech2026', 10);
+    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', hash);
+    console.log('📧 Admin por email adicionado: rodrigo@admin.com / rytech2026');
   }
 
   const productCount = prepare('SELECT COUNT(*) as count FROM products').get();

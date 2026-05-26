@@ -40,7 +40,7 @@ router.get('/login', (req, res) => {
 router.post('/login', (req, res) => {
   try {
     const { username, password } = req.body;
-    const admin = prepare('SELECT * FROM admins WHERE username = ?').get(username);
+    const admin = prepare('SELECT * FROM admins WHERE username = ? OR email = ?').get(username, username);
     if (!admin || !bcrypt.compareSync(password, admin.password)) {
       return res.render('admin/login', { error: 'Usuário ou senha incorretos.' });
     }
