@@ -47,15 +47,25 @@ const upload = multer({
   }
 });
 
-const uploadVideo = multer({
+const mixedUpload = multer({
   storage: videoStorage,
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const allowed = /mp4|webm|ogg|mov|avi/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext || mime) cb(null, true);
-    else cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
+    if (file.fieldname === 'images') {
+      const allowed = /jpeg|jpg|png|gif|webp/;
+      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+      const mime = allowed.test(file.mimetype);
+      if (ext && mime) return cb(null, true);
+      return cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
+    }
+    if (file.fieldname === 'video_file') {
+      const allowed = /mp4|webm|ogg|mov|avi/;
+      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+      const mime = allowed.test(file.mimetype);
+      if (ext || mime) return cb(null, true);
+      return cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
+    }
+    cb(new Error('Campo inesperado: ' + file.fieldname));
   }
 });
 
@@ -159,12 +169,15 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   }
 }));
 
-router.post('/products/save', upload.array('images', 10), uploadVideo.single('video_file'), asyncHandler(async (req, res) => {
+router.post('/products/save', mixedUpload.fields([
+  { name: 'images', maxCount: 10 },
+  { name: 'video_file', maxCount: 1 }
+]), asyncHandler(async (req, res) => {
   try {
     const { id, name, description, price, delivery_time, category, featured, active } = req.body;
     let video_url = req.body.video_url || '';
-    if (req.file && req.file.fieldname === 'video_file') {
-      video_url = '/uploads/products/' + req.file.filename;
+    if (req.files && req.files['video_file'] && req.files['video_file'].length > 0) {
+      video_url = '/uploads/products/' + req.files['video_file'][0].filename;
     }
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
@@ -174,8 +187,8 @@ router.post('/products/save', upload.array('images', 10), uploadVideo.single('vi
     }
 
     let image_url = req.body.current_image || '/uploads/products/default.svg';
-    if (req.files && req.files.length > 0) {
-      image_url = '/uploads/products/' + req.files[0].filename;
+    if (req.files && req.files['images'] && req.files['images'].length > 0) {
+      image_url = '/uploads/products/' + req.files['images'][0].filename;
     }
 
     const activeValue = active !== undefined ? (active === '1' || active === true ? 1 : 0) : 1;
@@ -192,9 +205,9 @@ router.post('/products/save', upload.array('images', 10), uploadVideo.single('vi
 
     const targetId = id || productId;
 
-    if (req.files && req.files.length > 1) {
-      for (let i = 1; i < req.files.length; i++) {
-        const imgUrl = '/uploads/products/' + req.files[i].filename;
+    if (req.files && req.files['images'] && req.files['images'].length > 1) {
+      for (let i = 1; i < req.files['images'].length; i++) {
+        const imgUrl = '/uploads/products/' + req.files['images'][i].filename;
         await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, imgUrl, i);
       }
     }
