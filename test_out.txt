@@ -1,0 +1,9 @@
+📁 SQLite carregado do arquivo.
+✅ Schema SQLite criado
+✅ Banco de dados inicializado!
+
+🚀 RYTECH3D Store rodando em http://localhost:3000
+📱 Site do cliente: http://localhost:3000
+🔧 Admin: http://localhost:3000/admin/login
+📧 Admin padrão: admin / Rytech3d@2026
+

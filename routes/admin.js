@@ -188,7 +188,9 @@ router.post('/products/save', mixedUpload.fields([
     }
 
     let image_url = req.body.current_image || '/uploads/products/default.svg';
-    if (req.files && req.files['images'] && req.files['images'].length > 0) {
+    if (req.body.image_url_input && req.body.image_url_input.startsWith('http')) {
+      image_url = req.body.image_url_input;
+    } else if (req.files && req.files['images'] && req.files['images'].length > 0) {
       image_url = '/uploads/products/' + req.files['images'][0].filename;
     }
 

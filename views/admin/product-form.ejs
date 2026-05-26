@@ -62,9 +62,22 @@
         </div>
 
         <div class="form-group">
-          <label for="images">Fotos do Produto (máx 10)</label>
-          <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple>
-          <small class="form-help">A primeira foto será a principal. Formatos: JPEG, PNG, GIF, WebP. Máx: 10MB cada</small>
+          <label>Imagem Principal do Produto</label>
+          <div class="image-upload-row">
+            <div class="image-file-option">
+              <label class="btn btn-outline btn-small" style="cursor:pointer">
+                <i class="fas fa-upload"></i> Upload de Arquivo
+                <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="document.getElementById('imageFileName').textContent = this.files[0]?.name || 'Nenhum'">
+              </label>
+              <span id="imageFileName" class="form-help" style="margin-left:8px">Nenhum arquivo</span>
+            </div>
+            <small class="form-help" style="display:block;margin-top:4px">Formatos: JPEG, PNG, GIF, WebP. Máx: 10MB cada</small>
+          </div>
+          <div class="image-url-option" style="margin-top:8px">
+            <label for="image_url_input">Ou cole uma URL externa</label>
+            <input type="url" id="image_url_input" name="image_url_input" value="<%= product && product.image_url && product.image_url.startsWith('http') ? product.image_url : '' %>" placeholder="https://exemplo.com/imagem.jpg" class="form-control" style="margin-top:4px">
+            <small class="form-help">Use sites como ImgBB, PostImages, etc. para hospedar imagens</small>
+          </div>
         </div>
 
         <% if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') { %>
