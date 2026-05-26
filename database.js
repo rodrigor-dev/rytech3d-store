@@ -215,13 +215,14 @@ async function initDatabase() {
 
   const productCount = prepare('SELECT COUNT(*) as count FROM products').get();
   if (productCount.count === 0) {
-    const insert = prepare('INSERT INTO products (name, description, price, delivery_time, category, image_url, featured) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    insert.run('Caneca Personalizada 3D', 'Caneca personalizada impressa em 3D com design exclusivo. Ideal para presente ou uso pessoal. Material PLA de alta qualidade.', 49.90, '5-7 dias úteis', 'Canecas', '/uploads/products/default.svg', 1);
-    insert.run('Porta-Canetas Geek', 'Porta-canetas temático com design moderno. Perfeito para organizar sua mesa de trabalho ou estudos.', 35.90, '3-5 dias úteis', 'Organizadores', '/uploads/products/default.svg', 1);
-    insert.run('Action Figure Personalizada', 'Action figure impressa em 3D com altos detalhes. Pode ser personalizada conforme sua referência.', 89.90, '7-10 dias úteis', 'Figuras', '/uploads/products/default.svg', 1);
-    insert.run('Suporte para Celular', 'Suporte ergonômico para celular, compatível com todos os modelos. Design compacto e resistente.', 25.90, '2-4 dias úteis', 'Acessórios', '/uploads/products/default.svg', 1);
-    insert.run('Chaveiro Personalizado', 'Chaveiro 3D personalizado com seu nome ou logo. Acabamento perfeito e durável.', 19.90, '2-3 dias úteis', 'Chaveiros', '/uploads/products/default.svg', 1);
-    insert.run('Vaso Decorativo', 'Vaso decorativo impresso em 3D com design moderno e minimalista. Disponível em várias cores.', 45.90, '4-6 dias úteis', 'Decoração', '/uploads/products/default.svg', 1);
+    console.log('📦 Banco sem produtos. Recriando produtos padrão...');
+    const insert = prepare('INSERT INTO products (name, description, price, delivery_time, category, image_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    insert.run('Caneca Personalizada 3D', 'Caneca personalizada impressa em 3D com design exclusivo. Ideal para presente ou uso pessoal. Material PLA de alta qualidade.', 49.90, '5-7 dias úteis', 'Canecas', '/uploads/products/default.svg', 1, 1);
+    insert.run('Porta-Canetas Geek', 'Porta-canetas temático com design moderno. Perfeito para organizar sua mesa de trabalho ou estudos.', 35.90, '3-5 dias úteis', 'Organizadores', '/uploads/products/default.svg', 1, 1);
+    insert.run('Action Figure Personalizada', 'Action figure impressa em 3D com altos detalhes. Pode ser personalizada conforme sua referência.', 89.90, '7-10 dias úteis', 'Figuras', '/uploads/products/default.svg', 1, 1);
+    insert.run('Suporte para Celular', 'Suporte ergonômico para celular, compatível com todos os modelos. Design compacto e resistente.', 25.90, '2-4 dias úteis', 'Acessórios', '/uploads/products/default.svg', 1, 1);
+    insert.run('Chaveiro Personalizado', 'Chaveiro 3D personalizado com seu nome ou logo. Acabamento perfeito e durável.', 19.90, '2-3 dias úteis', 'Chaveiros', '/uploads/products/default.svg', 1, 1);
+    insert.run('Vaso Decorativo', 'Vaso decorativo impresso em 3D com design moderno e minimalista. Disponível em várias cores.', 45.90, '4-6 dias úteis', 'Decoração', '/uploads/products/default.svg', 1, 1);
     console.log('📦 Produtos padrão criados com sucesso!');
   }
 

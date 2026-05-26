@@ -327,6 +327,58 @@ router.get('/customers', (req, res) => {
   }
 });
 
+router.get('/admins', (req, res) => {
+  try {
+    const admins = prepare('SELECT id, username, email, created_at FROM admins ORDER BY id ASC').all();
+    res.render('admin/admins', { admins, error: null, success: null });
+  } catch (err) {
+    console.error('Erro ao listar admins:', err);
+    res.status(500).send('Erro ao carregar administradores.');
+  }
+});
+
+router.post('/admins/create', (req, res) => {
+  try {
+    const { username, email, password } = req.body;
+    if (!username || !password) {
+      const admins = prepare('SELECT id, username, email, created_at FROM admins ORDER BY id ASC').all();
+      return res.render('admin/admins', { admins, error: 'Usuário e senha são obrigatórios.', success: null });
+    }
+    if (password.length < 6) {
+      const admins = prepare('SELECT id, username, email, created_at FROM admins ORDER BY id ASC').all();
+      return res.render('admin/admins', { admins, error: 'Senha deve ter no mínimo 6 caracteres.', success: null });
+    }
+    const existing = prepare('SELECT id FROM admins WHERE username = ? OR (email = ? AND email != ?)').get(username, email || '', '');
+    if (existing) {
+      const admins = prepare('SELECT id, username, email, created_at FROM admins ORDER BY id ASC').all();
+      return res.render('admin/admins', { admins, error: 'Nome de usuário ou email já existe.', success: null });
+    }
+    const hash = bcrypt.hashSync(password, 10);
+    prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run(username, email || '', hash);
+    const admins = prepare('SELECT id, username, email, created_at FROM admins ORDER BY id ASC').all();
+    res.render('admin/admins', { admins, success: 'Administrador cadastrado com sucesso!', error: null });
+  } catch (err) {
+    console.error('Erro ao criar admin:', err);
+    const admins = prepare('SELECT id, username, email, created_at FROM admins ORDER BY id ASC').all();
+    res.render('admin/admins', { admins, error: 'Erro ao cadastrar administrador.', success: null });
+  }
+});
+
+router.post('/admins/delete/:id', (req, res) => {
+  try {
+    const admin = prepare('SELECT * FROM admins WHERE id = ?').get(req.params.id);
+    if (!admin) return res.status(404).json({ error: 'Admin não encontrado' });
+    const adminCount = prepare('SELECT COUNT(*) as count FROM admins').get().count;
+    if (adminCount <= 1) return res.status(400).json({ error: 'Não é possível excluir o único administrador.' });
+    if (parseInt(req.params.id) === req.admin.id) return res.status(400).json({ error: 'Você não pode excluir a si mesmo.' });
+    prepare('DELETE FROM admins WHERE id = ?').run(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao deletar admin:', err);
+    res.status(500).json({ error: 'Erro ao excluir administrador.' });
+  }
+});
+
 router.get('/settings', (req, res) => {
   try {
     const settings = prepare('SELECT key, value FROM settings').all();

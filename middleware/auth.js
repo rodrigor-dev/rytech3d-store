@@ -50,6 +50,7 @@ function adminAuth(req, res, next) {
       throw new Error('Not admin');
     }
     req.admin = decoded;
+    res.locals.adminUser = decoded;
     next();
   } catch {
     if (req.xhr || req.headers.accept?.includes('json')) {

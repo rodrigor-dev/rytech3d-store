@@ -1579,6 +1579,12 @@ img { max-width: 100%; height: auto; }
 
 .sidebar-link i { width: 20px; text-align: center; }
 
+.sidebar-user { display: flex; align-items: center; gap: 10px; padding: 12px; margin-top: 8px; border-top: 1px solid var(--border); }
+.sidebar-user .user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--blue)); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; flex-shrink: 0; }
+.sidebar-user .user-info { overflow: hidden; }
+.sidebar-user .user-name { display: block; font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar-user .user-role { display: block; font-size: 0.7rem; color: var(--text-muted); }
+
 .admin-main {
   flex: 1;
   margin-left: 240px;

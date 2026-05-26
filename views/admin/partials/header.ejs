@@ -35,6 +35,9 @@
         <a href="/admin/customers" class="sidebar-link <%= currentPath === '/admin/customers' ? 'active' : '' %>">
           <i class="fas fa-users"></i> Clientes
         </a>
+        <a href="/admin/admins" class="sidebar-link <%= currentPath === '/admin/admins' ? 'active' : '' %>">
+          <i class="fas fa-user-shield"></i> Admins
+        </a>
         <a href="/admin/settings" class="sidebar-link <%= currentPath === '/admin/settings' ? 'active' : '' %>">
           <i class="fas fa-cog"></i> Configurações
         </a>
@@ -45,6 +48,13 @@
         <a href="/admin/logout" class="sidebar-link">
           <i class="fas fa-sign-out-alt"></i> Sair
         </a>
+        <div class="sidebar-user">
+          <div class="user-avatar"><%= (adminUser?.username || 'A').charAt(0).toUpperCase() %></div>
+          <div class="user-info">
+            <span class="user-name"><%= adminUser?.username || 'Admin' %></span>
+            <span class="user-role">Administrador</span>
+          </div>
+        </div>
       </nav>
     </aside>
     <main class="admin-main">

@@ -1,0 +1,108 @@
+<%- include('partials/header', { title: 'Administradores' }) %>
+
+<div class="admin-content">
+  <div class="admin-header">
+    <h1>Administradores</h1>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+  <% } %>
+  <% if (success) { %>
+    <div class="alert alert-success"><%= success %></div>
+  <% } %>
+
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h2>Novo Administrador</h2>
+    </div>
+    <div class="admin-card-body">
+      <form method="POST" action="/admin/admins/create" class="admin-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="username">Usuário *</label>
+            <input type="text" id="username" name="username" required placeholder="Nome de usuário">
+          </div>
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" placeholder="email@exemplo.com">
+          </div>
+          <div class="form-group">
+            <label for="password">Senha *</label>
+            <input type="password" id="password" name="password" required minlength="6" placeholder="Mínimo 6 caracteres">
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-plus"></i> Cadastrar Admin
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="admin-card-header">
+      <h2>Administradores Cadastrados</h2>
+    </div>
+    <div class="admin-card-body">
+      <% if (admins.length === 0) { %>
+        <div class="empty-state">
+          <i class="fas fa-user-shield"></i>
+          <h3>Nenhum administrador cadastrado</h3>
+        </div>
+      <% } else { %>
+        <div class="table-responsive">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Usuário</th>
+                <th>Email</th>
+                <th>Cadastro</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              <% admins.forEach(admin => { %>
+                <tr>
+                  <td><%= admin.id %></td>
+                  <td>
+                    <strong><%= admin.username %></strong>
+                    <% if (adminUser && admin.id === adminUser.id) { %>
+                      <span class="badge badge-info">Você</span>
+                    <% } %>
+                  </td>
+                  <td><%= admin.email || '-' %></td>
+                  <td><%= new Date(admin.created_at).toLocaleDateString('pt-BR') %></td>
+                  <td>
+                    <% if (admins.length > 1 && (!adminUser || admin.id !== adminUser.id)) { %>
+                      <button class="btn btn-danger btn-small" onclick="deleteAdmin(<%= admin.id %>, '<%= admin.username %>')">
+                        <i class="fas fa-trash"></i> Excluir
+                      </button>
+                    <% } else { %>
+                      <span class="text-muted">—</span>
+                    <% } %>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<script>
+function deleteAdmin(id, username) {
+  if (!confirm(`Tem certeza que deseja excluir o administrador "${username}"?`)) return;
+  fetch('/admin/admins/delete/' + id, { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) location.reload();
+      else alert(data.error || 'Erro ao excluir.');
+    })
+    .catch(() => alert('Erro ao excluir administrador.'));
+}
+</script>
+
+<%- include('partials/footer') %>
