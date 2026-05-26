@@ -43,9 +43,22 @@
         </div>
 
         <div class="form-group">
-          <label for="video_url">Vídeo (URL do YouTube)</label>
-          <input type="url" id="video_url" name="video_url" value="<%= product ? product.video_url : '' %>" placeholder="https://youtube.com/watch?v=...">
-          <small class="form-help">Cole o link do YouTube para mostrar um vídeo do produto</small>
+          <label>Vídeo do Produto</label>
+          <div class="video-upload-row">
+            <div class="video-file-upload">
+              <label class="btn btn-outline btn-small" style="cursor:pointer">
+                <i class="fas fa-upload"></i> Escolher Vídeo
+                <input type="file" id="video_file" name="video_file" accept="video/mp4,video/webm,video/ogg" style="display:none" onchange="document.getElementById('videoFileName').textContent = this.files[0].name">
+              </label>
+              <span id="videoFileName" class="form-help" style="margin-left:8px"><%= product && product.video_url && !product.video_url.includes('youtube') ? 'Vídeo atual: ' + product.video_url.split('/').pop() : 'Nenhum vídeo selecionado' %></span>
+            </div>
+            <small class="form-help" style="display:block;margin-top:4px">Formatos: MP4, WebM, OGG. Máx: 100MB</small>
+          </div>
+          <% if (product && product.video_url && !product.video_url.includes('youtube') && !product.video_url.includes('youtu.be')) { %>
+            <div style="margin-top:8px">
+              <video width="200" controls><source src="<%= product.video_url %>"></video>
+            </div>
+          <% } %>
         </div>
 
         <div class="form-group">

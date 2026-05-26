@@ -21,6 +21,18 @@ const storage = multer.diskStorage({
   }
 });
 
+const videoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '..', 'public', 'uploads', 'products');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`);
+  }
+});
+
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 },
@@ -30,6 +42,18 @@ const upload = multer({
     const mime = allowed.test(file.mimetype);
     if (ext && mime) cb(null, true);
     else cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
+  }
+});
+
+const uploadVideo = multer({
+  storage: videoStorage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /mp4|webm|ogg|mov|avi/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext || mime) cb(null, true);
+    else cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
   }
 });
 
@@ -133,9 +157,13 @@ router.get('/products/edit/:id', (req, res) => {
   }
 });
 
-router.post('/products/save', upload.array('images', 10), (req, res) => {
+router.post('/products/save', upload.array('images', 10), uploadVideo.single('video_file'), (req, res) => {
   try {
-    const { id, name, description, price, delivery_time, category, featured, video_url, active } = req.body;
+    const { id, name, description, price, delivery_time, category, featured, active } = req.body;
+    let video_url = req.body.video_url || '';
+    if (req.file && req.file.fieldname === 'video_file') {
+      video_url = '/uploads/products/' + req.file.filename;
+    }
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
         product: req.body,
