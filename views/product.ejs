@@ -57,6 +57,31 @@
             <input type="number" id="productQty" value="1" min="1" max="99">
             <button class="qty-btn" onclick="changeQty(1)">+</button>
           </div>
+          <% if (typeof variations !== 'undefined' && variations && variations.length > 0) { %>
+            <div class="product-variations">
+              <% 
+                const grouped = {};
+                variations.forEach(v => {
+                  if (!grouped[v.group_name]) grouped[v.group_name] = [];
+                  grouped[v.group_name].push(v);
+                });
+                const groupNames = Object.keys(grouped);
+              %>
+              <% groupNames.forEach(groupName => { %>
+                <div class="variation-group">
+                  <label class="variation-label"><%= groupName %></label>
+                  <div class="variation-options">
+                    <% grouped[groupName].forEach((v, idx) => { %>
+                      <label class="variation-option <%= idx === 0 ? 'selected' : '' %>">
+                        <input type="radio" name="var_<%= groupName.toLowerCase() %>" value="<%= v.variation_name %>" data-price="<%= v.price_modifier %>" <%= idx === 0 ? 'checked' : '' %> onchange="updateVariationPrice()">
+                        <span><%= v.variation_name %><% if (v.price_modifier > 0) { %> <small>+R$ <%= v.price_modifier.toFixed(2).replace('.', ',') %></small><% } %></span>
+                      </label>
+                    <% }) %>
+                  </div>
+                </div>
+              <% }) %>
+            </div>
+          <% } %>
           <button class="btn btn-primary btn-lg add-to-cart-btn" 
             data-id="<%= product.id %>" 
             data-name="<%= product.name %>" 
@@ -139,13 +164,42 @@ function changeQty(delta) {
   input.value = val;
 }
 
+function getSelectedVariations() {
+  const vars = {};
+  document.querySelectorAll('.variation-group input[type="radio"]:checked').forEach(input => {
+    const name = input.name.replace('var_', '');
+    vars[name] = {
+      name: input.value,
+      price_modifier: parseFloat(input.dataset.price) || 0
+    };
+  });
+  return vars;
+}
+
 function addWithQty(btn) {
   const qty = parseInt(document.getElementById('productQty').value) || 1;
+  const variations = getSelectedVariations();
+  const hasVars = Object.keys(variations).length > 0;
+  const basePrice = parseFloat(btn.dataset.price);
+  let totalVarPrice = 0;
+  Object.values(variations).forEach(v => { totalVarPrice += v.price_modifier; });
+  const finalPrice = basePrice + totalVarPrice;
+  
   for (let i = 0; i < qty; i++) {
-    addToCart(btn.dataset.id, btn.dataset.name, parseFloat(btn.dataset.price), btn.dataset.image);
+    addToCart(btn.dataset.id, btn.dataset.name, finalPrice, btn.dataset.image, hasVars ? variations : null);
   }
   updateCartBadge();
   showToast(`${qty}x ${btn.dataset.name} adicionado ao carrinho!`);
+}
+
+function updateVariationPrice() {
+  const basePrice = <%= product.price %>;
+  let totalVar = 0;
+  document.querySelectorAll('.variation-group input[type="radio"]:checked').forEach(input => {
+    totalVar += parseFloat(input.dataset.price) || 0;
+  });
+  const total = basePrice + totalVar;
+  document.querySelector('.price-current').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
 }
 </script>
 
@@ -159,6 +213,17 @@ function addWithQty(btn) {
 .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius); background: var(--bg-card); }
 .video-container iframe, .product-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .product-video-player { object-fit: contain; background: #000; border-radius: var(--radius); }
+
+.product-variations { margin: 16px 0; width: 100%; }
+.variation-group { margin-bottom: 12px; }
+.variation-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; }
+.variation-options { display: flex; flex-wrap: wrap; gap: 8px; }
+.variation-option { cursor: pointer; }
+.variation-option input { display: none; }
+.variation-option span { display: block; padding: 8px 16px; border: 2px solid var(--border); border-radius: var(--radius-sm); font-size: 0.85rem; transition: 0.2s; background: var(--bg-card); }
+.variation-option input:checked + span { border-color: var(--accent); background: rgba(0,212,170,0.1); color: var(--accent); }
+.variation-option:hover span { border-color: var(--accent); }
+.variation-option small { color: var(--text-muted); font-weight: 500; }
 </style>
 
 <%- include('partials/footer') %>

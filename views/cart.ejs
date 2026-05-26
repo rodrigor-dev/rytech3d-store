@@ -63,9 +63,10 @@ function renderCart() {
     
     html += `
       <div class="cart-item">
-        <img src="${item.image || '/uploads/products/default.svg'}" alt="${item.name}" onerror="this.src='/uploads/products/default.svg'">
+        <img src="${item.image || '/uploads/products/default.svg'}" alt="${item.product_name || item.name}" onerror="this.src='/uploads/products/default.svg'">
         <div class="cart-item-info">
-          <h4>${item.name}</h4>
+          <h4>${item.product_name || item.name}</h4>
+          ${item.variations ? '<div class="cart-item-variations">' + Object.entries(item.variations).map(([k,v]) => k + ': ' + v.name).join(', ') + '</div>' : ''}
           <p class="cart-item-price">R$ ${item.price.toFixed(2).replace('.', ',')}</p>
         </div>
         <div class="cart-item-qty">

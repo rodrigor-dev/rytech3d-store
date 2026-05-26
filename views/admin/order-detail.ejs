@@ -60,7 +60,15 @@
           <tbody>
             <% items.forEach(item => { %>
               <tr>
-                <td><%= item.product_name %></td>
+                <td>
+                <%= item.product_name %>
+                <% if (item.variations) { 
+                  let vars;
+                  try { vars = typeof item.variations === 'string' ? JSON.parse(item.variations) : item.variations; } catch { vars = {}; }
+                  const varStr = Object.entries(vars).map(([k,v]) => k + ': ' + (v.name || v)).join(', ');
+                  if (varStr) { %><br><small style="color:var(--text-muted)"><%= varStr %></small><% } %>
+                <% } %>
+              </td>
                 <td><%= item.quantity %></td>
                 <td>R$ <%= item.price.toFixed(2).replace('.', ',') %></td>
                 <td>R$ <%= (item.quantity * item.price).toFixed(2).replace('.', ',') %></td>

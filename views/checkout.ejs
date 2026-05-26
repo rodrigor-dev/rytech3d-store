@@ -1,5 +1,8 @@
 <%- include('partials/header', { title: 'Finalizar Pedido' }) %>
 
+<style>
+.checkout-item-variations { font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 4px; }
+</style>
 <section class="section checkout-section">
   <div class="container">
     <div class="checkout-container">
@@ -87,19 +90,22 @@ function renderCheckoutItems() {
   cart.forEach((item, index) => {
     const subtotal = item.price * item.quantity;
     total += subtotal;
+    const varsHtml = item.variations ? `<div class="checkout-item-variations">${Object.entries(item.variations).map(([k,v]) => k + ': ' + v.name).join(', ')}</div>` : '';
     html += `
       <div class="checkout-item">
         <img src="${item.image || '/uploads/products/default.svg'}" alt="${item.name}" onerror="this.src='/uploads/products/default.svg'">
         <div class="checkout-item-info">
-          <h4>${item.name}</h4>
-          <p>Qtd: ${item.quantity} x R$ ${item.price.toFixed(2).replace('.', ',')}</p>
+          <h4>${item.product_name || item.name}</h4>
+          ${varsHtml}
+          <p>R$ ${item.price.toFixed(2).replace('.', ',')} x ${item.quantity} = R$ ${subtotal.toFixed(2).replace('.', ',')}</p>
         </div>
         <div class="checkout-item-total">R$ ${subtotal.toFixed(2).replace('.', ',')}</div>
       </div>
     `;
+    const varsSummary = item.variations ? ' (' + Object.entries(item.variations).map(([k,v]) => k + ': ' + v.name).join(', ') + ')' : '';
     summaryHtml += `
       <div class="summary-item">
-        <span>${item.name} (${item.quantity}x)</span>
+        <span>${item.product_name || item.name}${varsSummary} (${item.quantity}x)</span>
         <span>R$ ${subtotal.toFixed(2).replace('.', ',')}</span>
       </div>
     `;

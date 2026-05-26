@@ -231,12 +231,18 @@ const SCHEMA = isPg() ? `
   CREATE TABLE IF NOT EXISTS order_items (
     id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id INTEGER NOT NULL REFERENCES products(id),
-    product_name TEXT NOT NULL, quantity INTEGER NOT NULL, price REAL NOT NULL
+    product_name TEXT NOT NULL, quantity INTEGER NOT NULL, price REAL NOT NULL,
+    variations TEXT DEFAULT '[]'
   );
   CREATE TABLE IF NOT EXISTS admins (
     id SERIAL PRIMARY KEY, username TEXT NOT NULL UNIQUE,
     email TEXT DEFAULT '', password TEXT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS product_variations (
+    id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    group_name TEXT NOT NULL, variation_name TEXT NOT NULL,
+    price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 ` : `
@@ -275,8 +281,15 @@ const SCHEMA = isPg() ? `
     id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL, product_name TEXT NOT NULL,
     quantity INTEGER NOT NULL, price REAL NOT NULL,
+    variations TEXT DEFAULT '[]',
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id)
+  );
+  CREATE TABLE IF NOT EXISTS product_variations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
+    group_name TEXT NOT NULL, variation_name TEXT NOT NULL,
+    price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
   CREATE TABLE IF NOT EXISTS admins (
     id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE,
@@ -284,6 +297,12 @@ const SCHEMA = isPg() ? `
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS product_variations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
+    group_name TEXT NOT NULL, variation_name TEXT NOT NULL,
+    price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  );
 `;
 
 // ─── Init ────────────────────────────────────────────────────────────────────
@@ -317,6 +336,8 @@ async function initDatabase() {
     }
     _sqlite.exec(SCHEMA);
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''"); } catch {}
+    try { _sqlite.exec("ALTER TABLE order_items ADD COLUMN variations TEXT DEFAULT '[]'"); } catch {}
+    try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_variations (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, group_name TEXT NOT NULL, variation_name TEXT NOT NULL, price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }

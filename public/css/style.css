@@ -947,6 +947,7 @@ img { max-width: 100%; height: auto; }
 .cart-item-info { flex: 1; }
 .cart-item-info h4 { font-size: 0.95rem; margin-bottom: 4px; }
 .cart-item-price { color: var(--accent); font-weight: 600; }
+.cart-item-variations { font-size: 0.75rem; color: var(--text-muted); margin-top: 2px; }
 
 .cart-item-qty {
   display: flex;

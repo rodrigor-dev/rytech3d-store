@@ -153,7 +153,7 @@ router.get('/products', asyncHandler(async (req, res) => {
 }));
 
 router.get('/products/new', asyncHandler(async (req, res) => {
-  res.render('admin/product-form', { product: null, error: null });
+  res.render('admin/product-form', { product: null, variations: [], error: null });
 }));
 
 router.get('/products/edit/:id', asyncHandler(async (req, res) => {
@@ -162,7 +162,8 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
     if (!product) return res.status(404).send('Produto não encontrado');
     const extraImages = await prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;
-    res.render('admin/product-form', { product, error: null });
+    const variations = await prepare('SELECT * FROM product_variations WHERE product_id = ? ORDER BY sort_order ASC').all(req.params.id);
+    res.render('admin/product-form', { product, variations, error: null });
   } catch (err) {
     console.error('Erro ao carregar produto:', err);
     res.status(500).send('Erro ao carregar produto.');
@@ -427,6 +428,30 @@ router.post('/settings', uploadLogo.single('logo'), asyncHandler(async (req, res
   } catch (err) {
     console.error('Erro ao salvar configurações:', err);
     res.status(500).send('Erro ao salvar configurações.');
+  }
+}));
+
+router.post('/products/variations/save', asyncHandler(async (req, res) => {
+  try {
+    const { product_id, variations } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'Product ID required' });
+
+    await prepare('DELETE FROM product_variations WHERE product_id = ?').run(product_id);
+
+    if (variations && Array.isArray(variations)) {
+      for (let i = 0; i < variations.length; i++) {
+        const v = variations[i];
+        if (v.group_name && v.variation_name) {
+          await prepare('INSERT INTO product_variations (product_id, group_name, variation_name, price_modifier, sort_order) VALUES (?, ?, ?, ?, ?)')
+            .run(product_id, v.group_name, v.variation_name, parseFloat(v.price_modifier || 0), i);
+        }
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao salvar variações:', err);
+    res.status(500).json({ error: 'Erro ao salvar variações.' });
   }
 }));
 

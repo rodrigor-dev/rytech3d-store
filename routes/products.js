@@ -34,11 +34,12 @@ router.get('/product/:id', asyncHandler(async (req, res) => {
     if (!product) return res.status(404).render('404');
     const extraImages = await prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;
+    const variations = await prepare('SELECT * FROM product_variations WHERE product_id = ? ORDER BY sort_order ASC').all(req.params.id);
     const related = await prepare('SELECT * FROM products WHERE category = ? AND id != ? AND active = 1 LIMIT 4').all(product.category, product.id);
     const settings = await prepare('SELECT key, value FROM settings').all();
     const siteSettings = {};
     settings.forEach(s => siteSettings[s.key] = s.value);
-    res.render('product', { product, relatedProducts: related, siteSettings });
+    res.render('product', { product, relatedProducts: related, siteSettings, variations });
 }));
 
 module.exports = router;

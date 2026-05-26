@@ -29,11 +29,13 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
     const qty = parseInt(item.quantity) || 1;
     const subtotal = product.price * qty;
     total += subtotal;
+    const variations = item.variations || {};
     orderItems.push({
       product_id: product.id,
       product_name: product.name,
       quantity: qty,
-      price: product.price
+      price: product.price,
+      variations
     });
   }
 
@@ -41,8 +43,9 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
     const result = await prepare('INSERT INTO orders (user_id, total, status, notes) VALUES (?, ?, ?, ?)').run(req.user.id, total, 'pending', notes || '');
     const orderId = result.lastInsertRowid;
     for (const item of orderItems) {
-      await prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, price) VALUES (?, ?, ?, ?, ?)')
-        .run(orderId, item.product_id, item.product_name, item.quantity, item.price);
+      const variationsJson = JSON.stringify(item.variations || {});
+      await prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, price, variations) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(orderId, item.product_id, item.product_name, item.quantity, item.price, variationsJson);
     }
     return orderId;
   });

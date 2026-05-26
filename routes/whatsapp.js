@@ -20,7 +20,14 @@ function formatOrderMessage(order, user, items) {
   lines.push('');
   lines.push('📦 *Itens do Pedido*');
   items.forEach((item, i) => {
-    lines.push(`${i + 1}. ${item.product_name} - ${item.quantity}x R$ ${item.price.toFixed(2)} = R$ ${(item.quantity * item.price).toFixed(2)}`);
+    let line = `${i + 1}. ${item.product_name}`;
+    if (item.variations) {
+      const vars = typeof item.variations === 'string' ? JSON.parse(item.variations) : item.variations;
+      const varStr = Object.entries(vars).map(([k,v]) => `${k}: ${v.name || v}`).join(', ');
+      if (varStr) line += ` (${varStr})`;
+    }
+    line += ` - ${item.quantity}x R$ ${item.price.toFixed(2)} = R$ ${(item.quantity * item.price).toFixed(2)}`;
+    lines.push(line);
   });
   lines.push('');
   lines.push(`💰 *Total: R$ ${order.total.toFixed(2)}*`);

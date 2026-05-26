@@ -1,3 +1,9 @@
+function getItemKey(id, variations) {
+  if (!variations) return 'item_' + id;
+  const varStr = Object.values(variations).map(v => v.name).sort().join('_');
+  return 'item_' + id + '_' + varStr;
+}
+
 function getCart() {
   try {
     return JSON.parse(localStorage.getItem('rytech3d_cart') || '[]');
@@ -8,13 +14,14 @@ function saveCart(cart) {
   localStorage.setItem('rytech3d_cart', JSON.stringify(cart));
 }
 
-function addToCart(id, name, price, image) {
+function addToCart(id, name, price, image, variations) {
   const cart = getCart();
-  const existing = cart.find(item => item.product_id === id);
+  const key = getItemKey(id, variations);
+  const existing = cart.find(item => item._key === key);
   if (existing) {
     existing.quantity += 1;
   } else {
-    cart.push({ product_id: id, product_name: name, quantity: 1, price, image });
+    cart.push({ _key: key, product_id: id, product_name: name, quantity: 1, price, image, variations: variations || null });
   }
   saveCart(cart);
   updateCartBadge();

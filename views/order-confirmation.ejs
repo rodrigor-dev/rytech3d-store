@@ -26,7 +26,13 @@
         <div class="confirmation-items">
           <% items.forEach(item => { %>
             <div class="conf-item">
-              <span class="conf-item-name"><%= item.product_name %></span>
+              <span class="conf-item-name"><%= item.product_name %>
+                <% if (item.variations) { 
+                  let vars; try { vars = typeof item.variations === 'string' ? JSON.parse(item.variations) : item.variations; } catch { vars = {}; }
+                  const varStr = Object.entries(vars).map(([k,v]) => k + ': ' + (v.name || v)).join(', ');
+                  if (varStr) { %><br><small style="font-weight:400;color:var(--text-muted);font-size:0.75rem"><%= varStr %></small><% } %>
+                <% } %>
+              </span>
               <span class="conf-item-qty"><%= item.quantity %>x</span>
               <span class="conf-item-price">R$ <%= (item.quantity * item.price).toFixed(2).replace('.', ',') %></span>
             </div>
