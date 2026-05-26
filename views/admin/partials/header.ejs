@@ -14,8 +14,12 @@
     <aside class="admin-sidebar">
       <div class="sidebar-header">
         <a href="/admin" class="sidebar-logo">
-          <span class="logo-icon">⚡</span>
-          <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
+          <% if (siteSettings && siteSettings.logo_url) { %>
+            <img src="<%= siteSettings.logo_url %>" alt="RYTECH3D" style="max-height:32px">
+          <% } else { %>
+            <span class="logo-icon">⚡</span>
+            <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
+          <% } %>
         </a>
       </div>
       <nav class="sidebar-nav">

@@ -8,8 +8,14 @@
 
     <div class="product-detail">
       <div class="product-detail-image">
-        <div class="product-image-main">
-          <img src="<%= product.image_url %>" alt="<%= product.name %>" onerror="this.src='/uploads/products/default.svg'">
+        <div class="product-image-main" id="mainImageContainer">
+          <img id="mainProductImage" src="<%= product.image_url %>" alt="<%= product.name %>" onerror="this.src='/uploads/products/default.svg'">
+        </div>
+        <div class="product-thumbnails" id="productThumbnails">
+          <img src="<%= product.image_url %>" alt="<%= product.name %>" class="thumb active" onclick="changeImage(this.src)" onerror="this.src='/uploads/products/default.svg'">
+          <% if (product.extraImages) { product.extraImages.forEach(img => { %>
+            <img src="<%= img.image_url %>" alt="<%= product.name %>" class="thumb" onclick="changeImage(this.src)" onerror="this.src='/uploads/products/default.svg'">
+          <% }) } %>
         </div>
       </div>
       <div class="product-detail-info">
@@ -33,6 +39,13 @@
               <span>Produzido após a confirmação do pedido</span>
             </div>
           </div>
+          <div class="meta-item">
+            <i class="fas fa-ruler-combined"></i>
+            <div>
+              <strong>Personalizável</strong>
+              <span>Entre em contato para personalizar</span>
+            </div>
+          </div>
         </div>
         <div class="product-detail-desc">
           <h3>Descrição</h3>
@@ -54,34 +67,43 @@
           </button>
         </div>
         <div class="product-detail-whatsapp">
-          <a href="https://wa.me/<%= typeof siteSettings !== 'undefined' && siteSettings.whatsapp_number ? siteSettings.whatsapp_number : '5562992371986' %>?text=Olá! Tenho interesse no produto: <%= encodeURIComponent(product.name) %> (R$ <%= product.price.toFixed(2) %>)" target="_blank" class="btn btn-outline whatsapp-btn">
+          <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=Olá! Tenho interesse no produto: <%= encodeURIComponent(product.name) %> (R$ <%= product.price.toFixed(2) %>)" target="_blank" class="btn btn-outline whatsapp-btn">
             <i class="fab fa-whatsapp"></i> Tirar Dúvidas no WhatsApp
           </a>
         </div>
       </div>
     </div>
 
+    <% if (product.video_url) { %>
+    <div class="product-video">
+      <h2 class="section-title">Vídeo do Produto</h2>
+      <div class="video-container">
+        <iframe src="<%= product.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') %>" frameborder="0" allowfullscreen></iframe>
+      </div>
+    </div>
+    <% } %>
+
     <% if (relatedProducts.length > 0) { %>
     <div class="related-products">
       <h2 class="section-title">Produtos Relacionados</h2>
       <div class="products-grid">
-        <% relatedProducts.forEach(product => { %>
+        <% relatedProducts.forEach(p => { %>
           <div class="product-card">
             <div class="product-image">
-              <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+              <img src="<%= p.image_url %>" alt="<%= p.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
               <div class="product-overlay">
-                <a href="/product/<%= product.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>
-                <button class="btn btn-small btn-accent add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
+                <a href="/product/<%= p.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>
+                <button class="btn btn-small btn-accent add-to-cart-btn" data-id="<%= p.id %>" data-name="<%= p.name %>" data-price="<%= p.price %>" data-image="<%= p.image_url %>">
                   <i class="fas fa-cart-plus"></i>
                 </button>
               </div>
             </div>
             <div class="product-info">
-              <span class="product-category"><%= product.category %></span>
-              <h3 class="product-name"><%= product.name %></h3>
+              <span class="product-category"><%= p.category %></span>
+              <h3 class="product-name"><%= p.name %></h3>
               <div class="product-footer">
-                <span class="product-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></span>
-                <button class="btn btn-sm btn-primary add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
+                <span class="product-price">R$ <%= p.price.toFixed(2).replace('.', ',') %></span>
+                <button class="btn btn-sm btn-primary add-to-cart-btn" data-id="<%= p.id %>" data-name="<%= p.name %>" data-price="<%= p.price %>" data-image="<%= p.image_url %>">
                   <i class="fas fa-cart-plus"></i>
                 </button>
               </div>
@@ -95,6 +117,12 @@
 </section>
 
 <script>
+function changeImage(src) {
+  document.getElementById('mainProductImage').src = src;
+  document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.thumb').forEach(t => { if (t.src === src) t.classList.add('active'); });
+}
+
 function changeQty(delta) {
   const input = document.getElementById('productQty');
   let val = parseInt(input.value) || 1;
@@ -103,6 +131,7 @@ function changeQty(delta) {
   if (val > 99) val = 99;
   input.value = val;
 }
+
 function addWithQty(btn) {
   const qty = parseInt(document.getElementById('productQty').value) || 1;
   for (let i = 0; i < qty; i++) {
@@ -112,5 +141,16 @@ function addWithQty(btn) {
   showToast(`${qty}x ${btn.dataset.name} adicionado ao carrinho!`);
 }
 </script>
+
+<style>
+.product-thumbnails { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.product-thumbnails .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: 0.2s; }
+.product-thumbnails .thumb.active { border-color: var(--accent); }
+.product-thumbnails .thumb:hover { border-color: var(--accent); }
+
+.product-video { margin-top: 40px; }
+.video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius); background: var(--bg-card); }
+.video-container iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+</style>
 
 <%- include('partials/footer') %>

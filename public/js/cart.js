@@ -29,7 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
       const id = parseInt(this.dataset.id);
       const name = this.dataset.name;
       const price = parseFloat(this.dataset.price);
-      const image = this.dataset.image || '/uploads/products/default.svg';
+      const image = this.dataset.image || this.dataset.imageUrl || '/uploads/products/default.svg';
       addToCart(id, name, price, image);
       showToast(name + ' adicionado ao carrinho!');
     });

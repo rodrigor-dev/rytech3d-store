@@ -38,7 +38,11 @@
                   <td>R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
                   <td><%= product.delivery_time %></td>
                   <td><%= product.featured ? '⭐' : '-' %></td>
-                  <td><%= product.active ? '✅' : '❌' %></td>
+                  <td>
+                    <button class="toggle-active-btn" data-id="<%= product.id %>" data-active="<%= product.active %>">
+                      <%= product.active ? '✅' : '❌' %>
+                    </button>
+                  </td>
                   <td class="actions-cell">
                     <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i></a>
                     <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
@@ -54,5 +58,23 @@
     </div>
   </div>
 </div>
+
+<script>
+document.querySelectorAll('.toggle-active-btn').forEach(btn => {
+  btn.addEventListener('click', async function() {
+    const id = this.dataset.id;
+    try {
+      const res = await fetch('/admin/products/toggle-active/' + id, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        this.dataset.active = data.active;
+        this.innerHTML = data.active ? '✅' : '❌';
+      }
+    } catch (err) {
+      alert('Erro ao alterar status');
+    }
+  });
+});
+</script>
 
 <%- include('partials/footer') %>

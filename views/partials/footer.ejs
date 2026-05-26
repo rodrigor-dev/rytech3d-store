@@ -5,8 +5,12 @@
       <div class="footer-grid">
         <div class="footer-col">
           <div class="footer-logo">
-            <span class="logo-icon">⚡</span>
-            <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
+            <% if (siteSettings.logo_url) { %>
+              <img src="<%= siteSettings.logo_url %>" alt="RYTECH3D" style="max-height:40px">
+            <% } else { %>
+              <span class="logo-icon">⚡</span>
+              <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
+            <% } %>
           </div>
           <p class="footer-desc">Impressão 3D de alta qualidade. Produtos personalizados feitos sob encomenda com a melhor qualidade e acabamento.</p>
           <div class="footer-social">

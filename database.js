@@ -142,10 +142,22 @@ async function initDatabase() {
     delivery_time TEXT NOT NULL,
     category TEXT DEFAULT 'Geral',
     image_url TEXT DEFAULT '/uploads/products/default.svg',
+    video_url TEXT DEFAULT '',
     featured INTEGER DEFAULT 0,
     active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  try { exec(`ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''`); } catch {}
+
+  exec(`CREATE TABLE IF NOT EXISTS product_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL,
+    image_url TEXT NOT NULL,
+    sort_order INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   )`);
 
   exec(`CREATE TABLE IF NOT EXISTS orders (
@@ -221,6 +233,7 @@ async function initDatabase() {
     insert.run('whatsapp_message', 'Olá! Gostaria de fazer um pedido na RYTECH3D.');
     insert.run('site_name', 'RYTECH3D');
     insert.run('site_url', process.env.SITE_URL || 'http://localhost:3000');
+    insert.run('logo_url', '');
   }
 
   saveToFile();

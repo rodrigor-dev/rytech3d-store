@@ -36,8 +36,13 @@ router.get('/product/:id', (req, res) => {
   try {
     const product = prepare('SELECT * FROM products WHERE id = ? AND active = 1').get(req.params.id);
     if (!product) return res.status(404).render('404');
+    const extraImages = prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
+    product.extraImages = extraImages;
     const related = prepare('SELECT * FROM products WHERE category = ? AND id != ? AND active = 1 LIMIT 4').all(product.category, product.id);
-    res.render('product', { product, relatedProducts: related });
+    const settings = prepare('SELECT key, value FROM settings').all();
+    const siteSettings = {};
+    settings.forEach(s => siteSettings[s.key] = s.value);
+    res.render('product', { product, relatedProducts: related, siteSettings });
   } catch (err) {
     console.error('Erro ao carregar produto:', err);
     res.status(500).send('Erro ao carregar produto.');

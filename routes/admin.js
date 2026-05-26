@@ -23,13 +23,36 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const allowed = /jpeg|jpg|png|gif|webp/;
     const ext = allowed.test(path.extname(file.originalname).toLowerCase());
     const mime = allowed.test(file.mimetype);
     if (ext && mime) cb(null, true);
     else cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
+  }
+});
+
+const logoStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '..', 'public', 'uploads');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `logo${ext}`);
+  }
+});
+
+const uploadLogo = multer({
+  storage: logoStorage,
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp|svg/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    if (ext) cb(null, true);
+    else cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP, SVG) são permitidas.'));
   }
 });
 
@@ -101,6 +124,8 @@ router.get('/products/edit/:id', (req, res) => {
   try {
     const product = prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
     if (!product) return res.status(404).send('Produto não encontrado');
+    const extraImages = prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
+    product.extraImages = extraImages;
     res.render('admin/product-form', { product, error: null });
   } catch (err) {
     console.error('Erro ao carregar produto:', err);
@@ -108,9 +133,9 @@ router.get('/products/edit/:id', (req, res) => {
   }
 });
 
-router.post('/products/save', upload.single('image'), (req, res) => {
+router.post('/products/save', upload.array('images', 10), (req, res) => {
   try {
-    const { id, name, description, price, delivery_time, category, featured } = req.body;
+    const { id, name, description, price, delivery_time, category, featured, video_url, active } = req.body;
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
         product: req.body,
@@ -119,17 +144,38 @@ router.post('/products/save', upload.single('image'), (req, res) => {
     }
 
     let image_url = req.body.current_image || '/uploads/products/default.svg';
-    if (req.file) {
-      image_url = '/uploads/products/' + req.file.filename;
+    if (req.files && req.files.length > 0) {
+      image_url = '/uploads/products/' + req.files[0].filename;
     }
 
+    const activeValue = active !== undefined ? (active === '1' || active === true ? 1 : 0) : 1;
+
     if (id) {
-      prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, featured=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', image_url, featured ? 1 : 0, parseInt(id));
+      prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, video_url=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', image_url, video_url || '', featured ? 1 : 0, activeValue, parseInt(id));
+      prepare('DELETE FROM product_images WHERE product_id = ?').run(id);
     } else {
-      prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, featured) VALUES (?, ?, ?, ?, ?, ?, ?)`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', image_url, featured ? 1 : 0);
+      const result = prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, video_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', image_url, video_url || '', featured ? 1 : 0, activeValue);
+      var productId = result.lastInsertRowid;
     }
+
+    const targetId = id || productId;
+
+    if (req.files && req.files.length > 1) {
+      for (let i = 1; i < req.files.length; i++) {
+        const imgUrl = '/uploads/products/' + req.files[i].filename;
+        prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, imgUrl, i);
+      }
+    }
+
+    if (req.body.existing_images) {
+      const existingImages = Array.isArray(req.body.existing_images) ? req.body.existing_images : [req.body.existing_images];
+      existingImages.forEach((url, i) => {
+        if (url) prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, url, 99 + i);
+      });
+    }
+
     res.redirect('/admin/products');
   } catch (err) {
     console.error('Erro ao salvar produto:', err);
@@ -140,6 +186,19 @@ router.post('/products/save', upload.single('image'), (req, res) => {
   }
 });
 
+router.post('/products/toggle-active/:id', (req, res) => {
+  try {
+    const product = prepare('SELECT active FROM products WHERE id = ?').get(req.params.id);
+    if (!product) return res.status(404).json({ error: 'Produto não encontrado' });
+    const newActive = product.active ? 0 : 1;
+    prepare('UPDATE products SET active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newActive, req.params.id);
+    res.json({ success: true, active: newActive });
+  } catch (err) {
+    console.error('Erro ao toggle active:', err);
+    res.status(500).json({ error: 'Erro ao alterar status.' });
+  }
+});
+
 router.post('/products/delete/:id', (req, res) => {
   try {
     const product = prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
@@ -147,6 +206,12 @@ router.post('/products/delete/:id', (req, res) => {
       const imgPath = path.join(__dirname, '..', 'public', product.image_url);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
+    const extraImages = prepare('SELECT * FROM product_images WHERE product_id = ?').all(req.params.id);
+    extraImages.forEach(img => {
+      const imgPath = path.join(__dirname, '..', 'public', img.image_url);
+      if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
+    });
+    prepare('DELETE FROM product_images WHERE product_id = ?').run(req.params.id);
     prepare('DELETE FROM products WHERE id = ?').run(req.params.id);
     res.redirect('/admin/products');
   } catch (err) {
@@ -246,7 +311,7 @@ router.get('/settings', (req, res) => {
   }
 });
 
-router.post('/settings', (req, res) => {
+router.post('/settings', uploadLogo.single('logo'), (req, res) => {
   try {
     const { site_name, whatsapp_number, instagram_url, whatsapp_message } = req.body;
     const insert = prepare('INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)');
@@ -255,7 +320,10 @@ router.post('/settings', (req, res) => {
     insert.run('instagram_url', instagram_url || 'https://instagram.com/rytech3d');
     insert.run('whatsapp_message', whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.');
 
-    const s = getSettings();
+    if (req.file) {
+      insert.run('logo_url', '/uploads/' + req.file.filename);
+    }
+
     const settings = prepare('SELECT key, value FROM settings').all();
     const settingsMap = {};
     settings.forEach(s => settingsMap[s.key] = s.value);
