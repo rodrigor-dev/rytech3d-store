@@ -11,6 +11,18 @@ const { getSettings } = require('../database');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = path.join(__dirname, '..', 'public', 'uploads', 'products');
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`);
+  }
+});
+
 const logoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, '..', 'public', 'uploads');
@@ -20,6 +32,28 @@ const logoStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `logo${ext}`);
+  }
+});
+
+const mixedUpload = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (file.fieldname === 'images') {
+      const allowed = /jpeg|jpg|png|gif|webp/;
+      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+      const mime = allowed.test(file.mimetype);
+      if (ext && mime) return cb(null, true);
+      return cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
+    }
+    if (file.fieldname === 'video_file') {
+      const allowed = /mp4|webm|ogg|mov|avi/;
+      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+      const mime = allowed.test(file.mimetype);
+      if (ext || mime) return cb(null, true);
+      return cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
+    }
+    cb(new Error('Campo inesperado: ' + file.fieldname));
   }
 });
 
@@ -112,11 +146,16 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   }
 }));
 
-router.post('/products/save', asyncHandler(async (req, res) => {
+router.post('/products/save', mixedUpload.fields([
+  { name: 'images', maxCount: 10 },
+  { name: 'video_file', maxCount: 1 }
+]), asyncHandler(async (req, res) => {
   try {
-    console.log('SAVE BODY:', req.body);
     const { id, name, description, price, delivery_time, category, featured, active } = req.body;
-    const video_url = req.body.video_url_input || '';
+    let video_url = req.body.video_url_input || '';
+    if (req.files && req.files['video_file'] && req.files['video_file'].length > 0) {
+      video_url = '/uploads/products/' + req.files['video_file'][0].filename;
+    }
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
         product: req.body,
@@ -126,8 +165,11 @@ router.post('/products/save', asyncHandler(async (req, res) => {
 
     let image_url = '/uploads/products/default.svg';
 
+    // URL takes priority, then file upload, then keep existing
     if (req.body.image_url_input && req.body.image_url_input.trim()) {
       image_url = req.body.image_url_input.trim();
+    } else if (req.files && req.files['images'] && req.files['images'].length > 0) {
+      image_url = '/uploads/products/' + req.files['images'][0].filename;
     } else if (req.body.current_image) {
       image_url = req.body.current_image;
     }
@@ -146,6 +188,16 @@ router.post('/products/save', asyncHandler(async (req, res) => {
 
     const targetId = id || productId;
 
+    // Save extra images from file uploads (2nd+ images)
+    if (req.files && req.files['images'] && req.files['images'].length > 1) {
+      let sortOrder = 1;
+      for (let i = 1; i < req.files['images'].length; i++) {
+        const imgUrl = '/uploads/products/' + req.files['images'][i].filename;
+        await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, imgUrl, sortOrder++);
+      }
+    }
+
+    // Save extra images from URL inputs
     const extraImages = req.body.extra_images;
     if (extraImages) {
       const urls = Array.isArray(extraImages) ? extraImages : [extraImages];

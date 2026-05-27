@@ -5,36 +5,36 @@ function formatOrderMessage(order, user, items) {
   lines.push('🛒 *NOVO PEDIDO - RYTECH3D*');
   lines.push('━━━━━━━━━━━━━━━━━━');
   lines.push('');
+  lines.push(`👋 Olá! Meu nome é *${user.full_name}*, acabei de fazer um pedido no site RYTECH3D.`);
+  lines.push('');
   lines.push(`📋 *Pedido #${order.id}*`);
   lines.push(`📅 ${new Date(order.created_at).toLocaleString('pt-BR')}`);
   lines.push('');
-  lines.push('👤 *Dados do Cliente*');
-  lines.push(`Nome: ${user.full_name}`);
-  lines.push(`Email: ${user.email}`);
-  lines.push(`Telefone: ${user.phone}`);
-  lines.push(`CPF: ${user.cpf}`);
-  lines.push(`Endereço: ${user.street}, ${user.number}${user.complement ? ' - ' + user.complement : ''}`);
-  lines.push(`Bairro: ${user.neighborhood}`);
-  lines.push(`Cidade: ${user.city}/${user.state}`);
-  lines.push(`CEP: ${user.zip_code}`);
-  lines.push('');
   lines.push('📦 *Itens do Pedido*');
   items.forEach((item, i) => {
-    let line = `${i + 1}. ${item.product_name}`;
+    let line = `${i + 1}. *${item.product_name}*`;
     if (item.variations) {
       const vars = typeof item.variations === 'string' ? JSON.parse(item.variations) : item.variations;
       const varStr = Object.entries(vars).map(([k,v]) => `${k}: ${v.name || v}`).join(', ');
       if (varStr) line += ` (${varStr})`;
     }
-    line += ` - ${item.quantity}x R$ ${item.price.toFixed(2)} = R$ ${(item.quantity * item.price).toFixed(2)}`;
+    line += `\n   Quantidade: ${item.quantity} | Preço: R$ ${item.price.toFixed(2)} | Subtotal: R$ ${(item.quantity * item.price).toFixed(2)}`;
     lines.push(line);
   });
   lines.push('');
-  lines.push(`💰 *Total: R$ ${order.total.toFixed(2)}*`);
+  lines.push(`💰 *Total do Pedido: R$ ${order.total.toFixed(2)}*`);
   if (order.notes) {
     lines.push('');
     lines.push(`📝 *Observações:* ${order.notes}`);
   }
+  lines.push('');
+  lines.push('👤 *Meus Dados*');
+  lines.push(`Nome: ${user.full_name}`);
+  lines.push(`Email: ${user.email}`);
+  lines.push(`Telefone: ${user.phone}`);
+  lines.push(`Endereço: ${user.street}, ${user.number}${user.complement ? ' - ' + user.complement : ''}`);
+  lines.push(`Bairro: ${user.neighborhood} | ${user.city}/${user.state}`);
+  lines.push(`CEP: ${user.zip_code}`);
   lines.push('');
   lines.push('✅ *Aguardando confirmação!*');
   lines.push(`🔗 ${order.site_url || 'http://localhost:3000'}/admin/orders/${order.id}`);

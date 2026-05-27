@@ -9,7 +9,7 @@
 
   <div class="admin-card">
     <div class="admin-card-body">
-      <form action="/admin/products/save" method="POST" class="admin-form">
+      <form action="/admin/products/save" method="POST" enctype="multipart/form-data" class="admin-form">
         <% if (product && product.id) { %>
           <input type="hidden" name="id" value="<%= product.id %>">
           <input type="hidden" name="current_image" value="<%= product.image_url %>">
@@ -54,13 +54,26 @@
         </div>
 
         <div class="form-group">
-          <label for="image_url_input">URL da Imagem Principal</label>
-          <input type="text" id="image_url_input" name="image_url_input" value="<%= product && product.image_url && (product.image_url.startsWith('http') || product.image_url === '/uploads/products/default.svg') ? product.image_url : '' %>" placeholder="https://i.ibb.co/xxxxx/imagem.jpg" class="form-control" style="font-family:monospace">
-          <small class="form-help">Cole o link direto da imagem (ImgBB, Cloudinary, etc)</small>
+          <label>Imagem Principal</label>
+          <div class="image-upload-row">
+            <div class="image-file-option">
+              <label class="btn btn-outline btn-small" style="cursor:pointer">
+                <i class="fas fa-upload"></i> Upload do Computador
+                <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="document.getElementById('imageFileName').textContent = this.files[0]?.name || 'Nenhum'">
+              </label>
+              <span id="imageFileName" class="form-help" style="margin-left:8px">Nenhum arquivo</span>
+            </div>
+            <small class="form-help" style="display:block;margin-top:4px">Formatos: JPEG, PNG, GIF, WebP</small>
+          </div>
+          <div class="image-url-option" style="margin-top:8px">
+            <label for="image_url_input">Ou cole uma URL externa</label>
+            <input type="text" id="image_url_input" name="image_url_input" value="<%= product && product.image_url && (product.image_url.startsWith('http') || product.image_url === '/uploads/products/default.svg') ? product.image_url : '' %>" placeholder="https://i.ibb.co/xxxxx/imagem.jpg (link direto, com i.ibb.co)" class="form-control" style="font-family:monospace;margin-top:4px">
+            <small class="form-help">Use ImgBB, Cloudinary, etc. URL <strong>começa com https://i.ibb.co/</strong> (não esquece o "i.")</small>
+          </div>
         </div>
 
         <div class="form-group">
-          <label>Imagens Extras (URLs)</label>
+          <label>Imagens Extras</label>
           <div id="extraImagesContainer">
             <% if (product && product.extraImages) { product.extraImages.forEach((img, idx) => { %>
               <div class="extra-image-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
