@@ -30,7 +30,7 @@ function formatOrderMessage(order, user, items) {
   lines.push('');
   lines.push(`👤 *Cliente: ${user.full_name}*`);
   lines.push('');
-  lines.push('✅ *Aguardando confirmação!');
+  lines.push('✅ *Aguardando confirmação!*');
   lines.push(`🔗 ${order.site_url || 'http://localhost:3000'}/admin/orders/${order.id}`);
   return lines.join('\n');
 }
