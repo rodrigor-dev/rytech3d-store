@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
+const passport = require('./middleware/passport');
 const { initDatabase, prepare } = require('./database');
 
 const app = express();
@@ -32,6 +33,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(passport.initialize());
 
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
@@ -43,6 +45,7 @@ app.use(async (req, res, next) => {
     settings.forEach(s => res.locals.siteSettings[s.key] = s.value);
     res.locals.currentPath = req.path;
     res.locals.currentUser = null;
+    res.locals.hasGoogleAuth = !!process.env.GOOGLE_CLIENT_ID;
     const token = req.cookies?.token;
     if (token) {
       try {

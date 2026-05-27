@@ -11,6 +11,12 @@
         <% if (error) { %>
           <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div>
         <% } %>
+        <% if (typeof hasGoogleAuth !== 'undefined' && hasGoogleAuth) { %>
+        <a href="/auth/google" class="btn btn-google btn-block">
+          <i class="fab fa-google"></i> Entrar com Google
+        </a>
+        <div class="auth-divider"><span>ou</span></div>
+        <% } %>
         <form action="/login" method="POST" class="auth-form">
           <input type="hidden" name="redirect" value="<%= redirect %>">
           <div class="form-group">

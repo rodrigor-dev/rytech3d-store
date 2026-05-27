@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const passport = require('../middleware/passport');
 const { prepare } = require('../database');
 const { generateToken } = require('../middleware/auth');
 
@@ -144,5 +145,18 @@ router.post('/profile/update', asyncHandler(async (req, res) => {
     res.status(500).json({ error: 'Erro ao atualizar dados.' });
   }
 }));
+
+router.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
+);
+
+router.get('/auth/google/callback',
+  passport.authenticate('google', { session: false, failureRedirect: '/login' }),
+  (req, res) => {
+    const token = generateToken(req.user);
+    res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    res.redirect('/checkout');
+  }
+);
 
 module.exports = router;

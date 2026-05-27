@@ -205,7 +205,8 @@ const SCHEMA = isPg() ? `
     email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, phone TEXT NOT NULL,
     street TEXT NOT NULL, number TEXT NOT NULL, complement TEXT DEFAULT '',
     neighborhood TEXT NOT NULL, city TEXT NOT NULL, state TEXT NOT NULL,
-    zip_code TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    zip_code TEXT NOT NULL, google_id TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
   CREATE TABLE IF NOT EXISTS products (
@@ -251,7 +252,7 @@ const SCHEMA = isPg() ? `
     cpf TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
     phone TEXT NOT NULL, street TEXT NOT NULL, number TEXT NOT NULL,
     complement TEXT DEFAULT '', neighborhood TEXT NOT NULL, city TEXT NOT NULL,
-    state TEXT NOT NULL, zip_code TEXT NOT NULL,
+    state TEXT NOT NULL, zip_code TEXT NOT NULL, google_id TEXT DEFAULT NULL,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -338,6 +339,7 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''"); } catch {}
     try { _sqlite.exec("ALTER TABLE order_items ADD COLUMN variations TEXT DEFAULT '[]'"); } catch {}
     try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_variations (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, group_name TEXT NOT NULL, variation_name TEXT NOT NULL, price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
+    try { _sqlite.exec("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT NULL"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }

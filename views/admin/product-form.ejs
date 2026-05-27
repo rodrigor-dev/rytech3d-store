@@ -9,7 +9,7 @@
 
   <div class="admin-card">
     <div class="admin-card-body">
-      <form action="/admin/products/save" method="POST" enctype="multipart/form-data" class="admin-form">
+      <form action="/admin/products/save" method="POST" class="admin-form">
         <% if (product && product.id) { %>
           <input type="hidden" name="id" value="<%= product.id %>">
           <input type="hidden" name="current_image" value="<%= product.image_url %>">
@@ -43,58 +43,50 @@
         </div>
 
         <div class="form-group">
-          <label>Vídeo do Produto</label>
-          <div class="video-upload-row">
-            <div class="video-file-upload">
-              <label class="btn btn-outline btn-small" style="cursor:pointer">
-                <i class="fas fa-upload"></i> Escolher Vídeo
-                <input type="file" id="video_file" name="video_file" accept="video/mp4,video/webm,video/ogg" style="display:none" onchange="document.getElementById('videoFileName').textContent = this.files[0].name">
-              </label>
-              <span id="videoFileName" class="form-help" style="margin-left:8px"><%= product && product.video_url && !product.video_url.includes('youtube') ? 'Vídeo atual: ' + product.video_url.split('/').pop() : 'Nenhum vídeo selecionado' %></span>
-            </div>
-            <small class="form-help" style="display:block;margin-top:4px">Formatos: MP4, WebM, OGG. Máx: 100MB</small>
-          </div>
-          <% if (product && product.video_url && !product.video_url.includes('youtube') && !product.video_url.includes('youtu.be')) { %>
-            <div style="margin-top:8px;position:relative;display:inline-block">
-              <video width="200" controls><source src="<%= product.video_url %>"></video>
-              <button type="button" class="img-del-btn" onclick="deleteVideo()" title="Remover vídeo" style="top:4px;right:4px"><i class="fas fa-times"></i></button>
+          <label for="video_url_input">URL do Vídeo (opcional)</label>
+          <input type="text" id="video_url_input" name="video_url_input" value="<%= product && product.video_url ? product.video_url : '' %>" placeholder="https://youtube.com/watch?v=... ou URL direto do vídeo" class="form-control" style="font-family:monospace">
+          <small class="form-help">YouTube, Vimeo, ou link direto de vídeo hospedado externamente</small>
+          <% if (product && product.video_url) { %>
+            <div style="margin-top:8px">
+              <button type="button" class="btn btn-danger btn-small" onclick="deleteVideo()"><i class="fas fa-trash"></i> Remover Vídeo</button>
             </div>
           <% } %>
         </div>
 
         <div class="form-group">
-          <label>Imagem Principal do Produto</label>
-          <div class="image-upload-row">
-            <div class="image-file-option">
-              <label class="btn btn-outline btn-small" style="cursor:pointer">
-                <i class="fas fa-upload"></i> Upload de Arquivo
-                <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="document.getElementById('imageFileName').textContent = this.files[0]?.name || 'Nenhum'">
-              </label>
-              <span id="imageFileName" class="form-help" style="margin-left:8px">Nenhum arquivo</span>
-            </div>
-            <small class="form-help" style="display:block;margin-top:4px">Formatos: JPEG, PNG, GIF, WebP. Máx: 10MB cada</small>
+          <label for="image_url_input">URL da Imagem Principal</label>
+          <input type="text" id="image_url_input" name="image_url_input" value="<%= product && product.image_url && (product.image_url.startsWith('http') || product.image_url === '/uploads/products/default.svg') ? product.image_url : '' %>" placeholder="https://i.ibb.co/xxxxx/imagem.jpg" class="form-control" style="font-family:monospace">
+          <small class="form-help">Cole o link direto da imagem (ImgBB, Cloudinary, etc)</small>
+        </div>
+
+        <div class="form-group">
+          <label>Imagens Extras (URLs)</label>
+          <div id="extraImagesContainer">
+            <% if (product && product.extraImages) { product.extraImages.forEach((img, idx) => { %>
+              <div class="extra-image-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+                <input type="text" name="extra_images" value="<%= img.image_url %>" placeholder="https://i.ibb.co/xxxxx/imagem.jpg" class="form-control" style="font-family:monospace">
+                <button type="button" class="btn btn-danger btn-small" onclick="this.closest('.extra-image-row').remove()"><i class="fas fa-times"></i></button>
+              </div>
+            <% }) } %>
           </div>
-          <div class="image-url-option" style="margin-top:8px">
-            <label for="image_url_input">Ou cole uma URL externa</label>
-            <input type="url" id="image_url_input" name="image_url_input" value="<%= product && product.image_url && product.image_url.startsWith('http') ? product.image_url : '' %>" placeholder="https://exemplo.com/imagem.jpg" class="form-control" style="margin-top:4px">
-            <small class="form-help">Use sites como ImgBB, PostImages, etc. para hospedar imagens</small>
-          </div>
+          <button type="button" class="btn btn-outline btn-small" onclick="addExtraImage()" style="margin-top:6px">
+            <i class="fas fa-plus"></i> Adicionar Imagem Extra
+          </button>
         </div>
 
         <% if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') { %>
           <div class="current-images">
-            <p>Fotos atuais:</p>
+            <p>Imagens atuais no servidor:</p>
             <div class="image-preview-grid">
               <div class="image-preview-item">
-                <img src="<%= product.image_url %>" alt="<%= product.name %>">
+                <img src="<%= product.image_url %>" alt="<%= product.name %>" onerror="this.style.display='none'">
                 <span class="main-badge">Principal</span>
-                <button type="button" class="img-del-btn" onclick="deleteImage('<%= product.image_url %>', true)" title="Remover imagem"><i class="fas fa-times"></i></button>
+                <button type="button" class="img-del-btn" onclick="deleteMainImage()" title="Remover imagem principal"><i class="fas fa-times"></i></button>
               </div>
               <% if (product.extraImages) { product.extraImages.forEach(img => { %>
                 <div class="image-preview-item">
-                  <img src="<%= img.image_url %>" alt="Foto extra">
-                  <input type="hidden" name="existing_images" value="<%= img.image_url %>">
-                  <button type="button" class="img-del-btn" onclick="deleteImage('<%= img.image_url %>', false)" title="Remover imagem"><i class="fas fa-times"></i></button>
+                  <img src="<%= img.image_url %>" alt="Extra" onerror="this.style.display='none'">
+                  <button type="button" class="img-del-btn" onclick="deleteImage('<%= img.image_url %>')" title="Remover"><i class="fas fa-times"></i></button>
                 </div>
               <% }) } %>
             </div>
@@ -221,10 +213,18 @@ function saveVariations() {
   })
   .catch(() => alert('Erro ao salvar variações.'));
 }
-function deleteImage(url, isMain) {
-  if (!confirm('Remover esta imagem?')) return;
+function addExtraImage() {
+  const container = document.getElementById('extraImagesContainer');
+  const row = document.createElement('div');
+  row.className = 'extra-image-row';
+  row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px';
+  row.innerHTML = '<input type="text" name="extra_images" placeholder="https://i.ibb.co/xxxxx/imagem.jpg" class="form-control" style="font-family:monospace"> <button type="button" class="btn btn-danger btn-small" onclick="this.closest(\'.extra-image-row\').remove()"><i class="fas fa-times"></i></button>';
+  container.appendChild(row);
+}
+function deleteImage(url) {
+  if (!confirm('Remover esta imagem extra?')) return;
   const productId = <%= product ? product.id : 'null' %>;
-  fetch('/admin/products/delete-image', {
+  fetch('/admin/products/delete-extra-image', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ product_id: productId, image_url: url })
@@ -235,6 +235,21 @@ function deleteImage(url, isMain) {
     else alert(data.error || 'Erro ao remover imagem');
   })
   .catch(() => alert('Erro ao remover imagem.'));
+}
+function deleteMainImage() {
+  if (!confirm('Remover a imagem principal?')) return;
+  const productId = <%= product ? product.id : 'null' %>;
+  fetch('/admin/products/delete-main-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ product_id: productId })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) location.reload();
+    else alert(data.error || 'Erro ao remover imagem principal');
+  })
+  .catch(() => alert('Erro ao remover imagem principal.'));
 }
 function deleteVideo() {
   if (!confirm('Remover este vídeo?')) return;

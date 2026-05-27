@@ -11,64 +11,6 @@ const { getSettings } = require('../database');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '..', 'public', 'uploads', 'products');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`);
-  }
-});
-
-const videoStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '..', 'public', 'uploads', 'products');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `video_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`);
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|webp/;
-    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-    const mime = allowed.test(file.mimetype);
-    if (ext && mime) cb(null, true);
-    else cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
-  }
-});
-
-const mixedUpload = multer({
-  storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === 'images') {
-      const allowed = /jpeg|jpg|png|gif|webp/;
-      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-      const mime = allowed.test(file.mimetype);
-      if (ext && mime) return cb(null, true);
-      return cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
-    }
-    if (file.fieldname === 'video_file') {
-      const allowed = /mp4|webm|ogg|mov|avi/;
-      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-      const mime = allowed.test(file.mimetype);
-      if (ext || mime) return cb(null, true);
-      return cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
-    }
-    cb(new Error('Campo inesperado: ' + file.fieldname));
-  }
-});
-
 const logoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     const dir = path.join(__dirname, '..', 'public', 'uploads');
@@ -170,16 +112,11 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   }
 }));
 
-router.post('/products/save', mixedUpload.fields([
-  { name: 'images', maxCount: 10 },
-  { name: 'video_file', maxCount: 1 }
-]), asyncHandler(async (req, res) => {
+router.post('/products/save', asyncHandler(async (req, res) => {
   try {
+    console.log('SAVE BODY:', req.body);
     const { id, name, description, price, delivery_time, category, featured, active } = req.body;
-    let video_url = req.body.video_url || '';
-    if (req.files && req.files['video_file'] && req.files['video_file'].length > 0) {
-      video_url = '/uploads/products/' + req.files['video_file'][0].filename;
-    }
+    const video_url = req.body.video_url_input || '';
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
         product: req.body,
@@ -187,11 +124,12 @@ router.post('/products/save', mixedUpload.fields([
       });
     }
 
-    let image_url = req.body.current_image || '/uploads/products/default.svg';
-    if (req.body.image_url_input && req.body.image_url_input.startsWith('http')) {
-      image_url = req.body.image_url_input;
-    } else if (req.files && req.files['images'] && req.files['images'].length > 0) {
-      image_url = '/uploads/products/' + req.files['images'][0].filename;
+    let image_url = '/uploads/products/default.svg';
+
+    if (req.body.image_url_input && req.body.image_url_input.trim()) {
+      image_url = req.body.image_url_input.trim();
+    } else if (req.body.current_image) {
+      image_url = req.body.current_image;
     }
 
     const activeValue = active !== undefined ? (active === '1' || active === true ? 1 : 0) : 1;
@@ -208,18 +146,14 @@ router.post('/products/save', mixedUpload.fields([
 
     const targetId = id || productId;
 
-    if (req.files && req.files['images'] && req.files['images'].length > 1) {
-      for (let i = 1; i < req.files['images'].length; i++) {
-        const imgUrl = '/uploads/products/' + req.files['images'][i].filename;
-        await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, imgUrl, i);
-      }
-    }
-
-    if (req.body.existing_images) {
-      const existingImages = Array.isArray(req.body.existing_images) ? req.body.existing_images : [req.body.existing_images];
-      for (let i = 0; i < existingImages.length; i++) {
-        const url = existingImages[i];
-        if (url) await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, url, 99 + i);
+    const extraImages = req.body.extra_images;
+    if (extraImages) {
+      const urls = Array.isArray(extraImages) ? extraImages : [extraImages];
+      let sortOrder = 1;
+      for (const url of urls) {
+        if (url && url.trim()) {
+          await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, url.trim(), sortOrder++);
+        }
       }
     }
 
@@ -233,21 +167,27 @@ router.post('/products/save', mixedUpload.fields([
   }
 }));
 
-router.post('/products/delete-image', asyncHandler(async (req, res) => {
+router.post('/products/delete-extra-image', asyncHandler(async (req, res) => {
   try {
     const { product_id, image_url } = req.body;
     if (!product_id || !image_url) return res.status(400).json({ error: 'Dados incompletos' });
-    const imgPath = path.join(__dirname, '..', 'public', image_url);
-    if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     await prepare('DELETE FROM product_images WHERE product_id = ? AND image_url = ?').run(product_id, image_url);
-    const remaining = await prepare('SELECT COUNT(*) as count FROM product_images WHERE product_id = ?').get(product_id);
-    if (remaining.count === 0) {
-      await prepare('UPDATE products SET image_url = ? WHERE id = ?').run('/uploads/products/default.svg', product_id);
-    }
     res.json({ success: true });
   } catch (err) {
-    console.error('Erro ao deletar imagem:', err);
+    console.error('Erro ao deletar imagem extra:', err);
     res.status(500).json({ error: 'Erro ao deletar imagem.' });
+  }
+}));
+
+router.post('/products/delete-main-image', asyncHandler(async (req, res) => {
+  try {
+    const { product_id } = req.body;
+    if (!product_id) return res.status(400).json({ error: 'ID do produto obrigatório' });
+    await prepare('UPDATE products SET image_url = ? WHERE id = ?').run('/uploads/products/default.svg', product_id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Erro ao deletar imagem principal:', err);
+    res.status(500).json({ error: 'Erro ao deletar imagem principal.' });
   }
 }));
 
