@@ -36,24 +36,6 @@
   </div>
 </section>
 
-<section class="section banner-section">
-  <div class="container">
-    <div class="banner-card">
-      <div class="banner-content">
-        <span class="banner-tag">Impressão 3D</span>
-        <h2 class="banner-title">Peças <span class="gradient-text">Personalizadas</span></h2>
-        <p class="banner-text">Do conceito à realidade. Transformamos suas ideias em objetos impressos em 3D com acabamento profissional.</p>
-        <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=Olá! Quero fazer um orçamento personalizado." target="_blank" class="btn btn-accent">
-          <i class="fab fa-whatsapp"></i> Solicitar Orçamento
-        </a>
-      </div>
-      <div class="banner-visual">
-        <i class="fas fa-cube"></i>
-      </div>
-    </div>
-  </div>
-</section>
-
 <% if (typeof featuredProducts !== 'undefined' && featuredProducts && featuredProducts.length > 0) { %>
 <section class="section">
   <div class="container">
@@ -93,6 +75,24 @@
   </div>
 </section>
 <% } %>
+
+<section class="section banner-section">
+  <div class="container">
+    <div class="banner-card">
+      <div class="banner-content">
+        <span class="banner-tag">Impressão 3D</span>
+        <h2 class="banner-title">Peças <span class="gradient-text">Personalizadas</span></h2>
+        <p class="banner-text">Do conceito à realidade. Transformamos suas ideias em objetos impressos em 3D com acabamento profissional.</p>
+        <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=Olá! Quero fazer um orçamento personalizado." target="_blank" class="btn btn-accent">
+          <i class="fab fa-whatsapp"></i> Solicitar Orçamento
+        </a>
+      </div>
+      <div class="banner-visual">
+        <i class="fas fa-cube"></i>
+      </div>
+    </div>
+  </div>
+</section>
 
 <section class="section" id="produtos">
   <div class="container">
