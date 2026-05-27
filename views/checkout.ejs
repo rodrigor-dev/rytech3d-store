@@ -167,7 +167,11 @@ async function placeOrder() {
 
     if (data.success) {
       clearCart();
-      window.location.href = '/confirmation/' + data.orderId;
+      if (data.whatsappUrl) {
+        window.location.href = data.whatsappUrl;
+      } else {
+        window.location.href = '/confirmation/' + data.orderId;
+      }
     } else {
       showToast(data.error || 'Erro ao processar pedido');
       btn.disabled = false;

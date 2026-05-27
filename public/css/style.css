@@ -79,7 +79,6 @@ img { max-width: 100%; height: auto; }
   font-family: 'Space Grotesk', sans-serif;
 }
 
-.logo-icon { font-size: 1.8rem; }
 .nav-logo-img { max-height: 40px; width: auto; border-radius: 6px; object-fit: contain; }
 .logo-text { letter-spacing: -0.5px; }
 .logo-highlight { color: var(--accent); }

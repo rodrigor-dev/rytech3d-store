@@ -165,14 +165,40 @@ router.post('/products/save', mixedUpload.fields([
 
     let image_url = '/uploads/products/default.svg';
 
-    // URL takes priority, then file upload, then keep existing
-    if (req.body.image_url_input && req.body.image_url_input.trim()) {
-      image_url = req.body.image_url_input.trim();
-    } else if (req.files && req.files['images'] && req.files['images'].length > 0) {
-      image_url = '/uploads/products/' + req.files['images'][0].filename;
-    } else if (req.body.current_image) {
-      image_url = req.body.current_image;
+    // Collect kept existing images
+    const keptImages = [];
+    if (req.body.existing_images) {
+      const urls = Array.isArray(req.body.existing_images) ? req.body.existing_images : [req.body.existing_images];
+      urls.forEach(u => { if (u && u.trim()) keptImages.push(u.trim()); });
     }
+
+    // Remove deleted existing images from disk
+    const removedRaw = req.body.removed_images || '';
+    const removed = removedRaw ? removedRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    // Uploaded files
+    const uploadedFiles = (req.files && req.files['images']) ? req.files['images'] : [];
+
+    // Build final ordered list: kept existing (in order) + new uploads
+    const allImages = [...keptImages];
+    uploadedFiles.forEach(f => {
+      allImages.push('/uploads/products/' + f.filename);
+    });
+
+    if (allImages.length > 0) {
+      image_url = allImages[0]; // first = main
+    }
+
+    // Delete removed images from filesystem
+    removed.forEach(url => {
+      if (url && url.startsWith('/uploads/')) {
+        const filePath = path.join(__dirname, '..', 'public', url);
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+          console.log('Deleted image:', filePath);
+        }
+      }
+    });
 
     const activeValue = active !== undefined ? (active === '1' || active === true ? 1 : 0) : 1;
 
@@ -188,25 +214,12 @@ router.post('/products/save', mixedUpload.fields([
 
     const targetId = id || productId;
 
-    // Save extra images from file uploads (2nd+ images)
-    if (req.files && req.files['images'] && req.files['images'].length > 1) {
-      let sortOrder = 1;
-      for (let i = 1; i < req.files['images'].length; i++) {
-        const imgUrl = '/uploads/products/' + req.files['images'][i].filename;
-        await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, imgUrl, sortOrder++);
-      }
+    // Save extra images (allImages[1+] = extra images)
+    let sortOrder = 1;
+    for (let i = 1; i < allImages.length; i++) {
+      await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, allImages[i], sortOrder++);
     }
 
-    // Save extra images from URL inputs
-    const extraImages = req.body.extra_images;
-    if (extraImages) {
-      const urls = Array.isArray(extraImages) ? extraImages : [extraImages];
-      let sortOrder = 1;
-      for (const url of urls) {
-        if (url && url.trim()) {
-          await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, url.trim(), sortOrder++);
-        }
-      }
     }
 
     res.redirect('/admin/products');

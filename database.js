@@ -161,9 +161,19 @@ function sqliteTransaction(fn) {
   return (...args) => {
     try {
       sqliteExec('BEGIN TRANSACTION');
-      const result = fn(...args);
-      sqliteExec('COMMIT');
-      return result;
+      const maybePromise = fn(...args);
+      if (maybePromise instanceof Promise) {
+        return maybePromise.then(result => {
+          sqliteExec('COMMIT');
+          return result;
+        }).catch(err => {
+          try { sqliteExec('ROLLBACK'); } catch {}
+          throw err;
+        });
+      } else {
+        sqliteExec('COMMIT');
+        return maybePromise;
+      }
     } catch (err) {
       try { sqliteExec('ROLLBACK'); } catch {}
       throw err;

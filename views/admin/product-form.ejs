@@ -54,57 +54,34 @@
         </div>
 
         <div class="form-group">
-          <label>Imagem Principal</label>
-          <div class="image-upload-row">
-            <div class="image-file-option">
-              <label class="btn btn-outline btn-small" style="cursor:pointer">
-                <i class="fas fa-upload"></i> Upload do Computador
-                <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" style="display:none" onchange="document.getElementById('imageFileName').textContent = this.files[0]?.name || 'Nenhum'">
-              </label>
-              <span id="imageFileName" class="form-help" style="margin-left:8px">Nenhum arquivo</span>
-            </div>
-            <small class="form-help" style="display:block;margin-top:4px">Formatos: JPEG, PNG, GIF, WebP</small>
+          <label>Imagens do Produto (máx. 6)</label>
+          <div class="image-upload-area">
+            <label class="btn btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+              <i class="fas fa-upload"></i> Selecionar Imagens
+              <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none" onchange="handleFiles(this)">
+            </label>
+            <span id="imageCount" class="form-help" style="margin-left:8px"></span>
           </div>
-          <div class="image-url-option" style="margin-top:8px">
-            <label for="image_url_input">Ou cole uma URL externa</label>
-            <input type="text" id="image_url_input" name="image_url_input" value="<%= product && product.image_url && (product.image_url.startsWith('http') || product.image_url === '/uploads/products/default.svg') ? product.image_url : '' %>" placeholder="https://i.ibb.co/xxxxx/imagem.jpg (link direto, com i.ibb.co)" class="form-control" style="font-family:monospace;margin-top:4px">
-            <small class="form-help">Use ImgBB, Cloudinary, etc. URL <strong>começa com https://i.ibb.co/</strong> (não esquece o "i.")</small>
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>Imagens Extras</label>
-          <div id="extraImagesContainer">
-            <% if (product && product.extraImages) { product.extraImages.forEach((img, idx) => { %>
-              <div class="extra-image-row" style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
-                <input type="text" name="extra_images" value="<%= img.image_url %>" placeholder="https://i.ibb.co/xxxxx/imagem.jpg" class="form-control" style="font-family:monospace">
-                <button type="button" class="btn btn-danger btn-small" onclick="this.closest('.extra-image-row').remove()"><i class="fas fa-times"></i></button>
+          <small class="form-help">Formatos: JPEG, PNG, GIF, WebP. A primeira imagem será a principal. Clique no "x" para remover.</small>
+          <div id="imagePreviewContainer" class="image-preview-grid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
+            <% if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') { %>
+              <div class="image-preview-item" style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--accent);background:var(--bg-secondary)" data-existing="<%= product.image_url %>">
+                <img src="<%= product.image_url %>" style="width:100%;height:100%;object-fit:cover" onerror="this.closest('.image-preview-item').remove()">
+                <span style="position:absolute;top:4px;left:4px;background:var(--accent);color:#000;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px">Principal</span>
+                <input type="hidden" name="existing_images" value="<%= product.image_url %>">
+                <button type="button" class="img-del-btn" onclick="removeExisting(this,'<%= product.image_url %>')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
+              </div>
+            <% } %>
+            <% if (product && product.extraImages) { product.extraImages.forEach(img => { %>
+              <div class="image-preview-item" style="position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--border);background:var(--bg-secondary)" data-existing="<%= img.image_url %>">
+                <img src="<%= img.image_url %>" style="width:100%;height:100%;object-fit:cover" onerror="this.closest('.image-preview-item').remove()">
+                <input type="hidden" name="existing_images" value="<%= img.image_url %>">
+                <button type="button" class="img-del-btn" onclick="removeExisting(this,'<%= img.image_url %>')" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>
               </div>
             <% }) } %>
           </div>
-          <button type="button" class="btn btn-outline btn-small" onclick="addExtraImage()" style="margin-top:6px">
-            <i class="fas fa-plus"></i> Adicionar Imagem Extra
-          </button>
+          <input type="hidden" name="removed_images" id="removedImages" value="">
         </div>
-
-        <% if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') { %>
-          <div class="current-images">
-            <p>Imagens atuais no servidor:</p>
-            <div class="image-preview-grid">
-              <div class="image-preview-item">
-                <img src="<%= product.image_url %>" alt="<%= product.name %>" onerror="this.style.display='none'">
-                <span class="main-badge">Principal</span>
-                <button type="button" class="img-del-btn" onclick="deleteMainImage()" title="Remover imagem principal"><i class="fas fa-times"></i></button>
-              </div>
-              <% if (product.extraImages) { product.extraImages.forEach(img => { %>
-                <div class="image-preview-item">
-                  <img src="<%= img.image_url %>" alt="Extra" onerror="this.style.display='none'">
-                  <button type="button" class="img-del-btn" onclick="deleteImage('<%= img.image_url %>')" title="Remover"><i class="fas fa-times"></i></button>
-                </div>
-              <% }) } %>
-            </div>
-          </div>
-        <% } %>
 
         <div class="form-row">
           <div class="form-group form-check">
@@ -226,43 +203,47 @@ function saveVariations() {
   })
   .catch(() => alert('Erro ao salvar variações.'));
 }
-function addExtraImage() {
-  const container = document.getElementById('extraImagesContainer');
-  const row = document.createElement('div');
-  row.className = 'extra-image-row';
-  row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-bottom:6px';
-  row.innerHTML = '<input type="text" name="extra_images" placeholder="https://i.ibb.co/xxxxx/imagem.jpg" class="form-control" style="font-family:monospace"> <button type="button" class="btn btn-danger btn-small" onclick="this.closest(\'.extra-image-row\').remove()"><i class="fas fa-times"></i></button>';
-  container.appendChild(row);
+function handleFiles(input) {
+  const files = Array.from(input.files);
+  const container = document.getElementById('imagePreviewContainer');
+  const existing = container.querySelectorAll('.image-preview-item').length;
+  const maxTotal = 6;
+  const maxNew = maxTotal - existing;
+  const toAdd = files.slice(0, maxNew);
+  toAdd.forEach((file, idx) => {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const div = document.createElement('div');
+      div.className = 'image-preview-item';
+      div.style.cssText = 'position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--border);background:var(--bg-secondary)';
+      if (existing === 0 && idx === 0) {
+        div.style.borderColor = 'var(--accent)';
+        div.innerHTML += '<span style="position:absolute;top:4px;left:4px;background:var(--accent);color:#000;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px">Principal</span>';
+      }
+      div.innerHTML += '<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+      div.innerHTML += '<button type="button" onclick="this.closest(\'.image-preview-item\').remove()" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>';
+      container.appendChild(div);
+      updateImageCount();
+    };
+    reader.readAsDataURL(file);
+  });
+  if (files.length > maxNew) {
+    alert('Máximo de ' + maxTotal + ' imagens no total. ' + files.length + ' selecionadas, mas só cabem ' + maxNew + ' novas.');
+  }
+  input.value = '';
 }
-function deleteImage(url) {
-  if (!confirm('Remover esta imagem extra?')) return;
-  const productId = <%= product ? product.id : 'null' %>;
-  fetch('/admin/products/delete-extra-image', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: productId, image_url: url })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) location.reload();
-    else alert(data.error || 'Erro ao remover imagem');
-  })
-  .catch(() => alert('Erro ao remover imagem.'));
+function removeExisting(btn, url) {
+  if (!confirm('Remover esta imagem?')) return;
+  const removed = document.getElementById('removedImages');
+  const existing = removed.value ? removed.value.split(',') : [];
+  existing.push(url);
+  removed.value = existing.join(',');
+  btn.closest('.image-preview-item').remove();
+  updateImageCount();
 }
-function deleteMainImage() {
-  if (!confirm('Remover a imagem principal?')) return;
-  const productId = <%= product ? product.id : 'null' %>;
-  fetch('/admin/products/delete-main-image', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ product_id: productId })
-  })
-  .then(r => r.json())
-  .then(data => {
-    if (data.success) location.reload();
-    else alert(data.error || 'Erro ao remover imagem principal');
-  })
-  .catch(() => alert('Erro ao remover imagem principal.'));
+function updateImageCount() {
+  const count = document.querySelectorAll('#imagePreviewContainer .image-preview-item').length;
+  document.getElementById('imageCount').textContent = count + '/6 imagens';
 }
 function deleteVideo() {
   if (!confirm('Remover este vídeo?')) return;
@@ -289,6 +270,7 @@ function deleteProduct() {
   })
   .catch(() => alert('Erro ao excluir produto.'));
 }
+document.addEventListener('DOMContentLoaded', updateImageCount);
 </script>
 
 <%- include('partials/footer') %>

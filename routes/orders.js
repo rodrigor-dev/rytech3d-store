@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const { prepare, transaction, getSettings } = require('../database');
 const { authMiddleware } = require('../middleware/auth');
-const { sendWhatsAppNotification } = require('./whatsapp');
+const { formatOrderMessage } = require('./whatsapp');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
@@ -64,11 +64,21 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
   const order = await prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
   const user = await prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
 
-  sendWhatsAppNotification(order, user, orderItems).catch(err => {
-    console.error('Erro ao enviar notificação WhatsApp:', err.message);
-  });
+  // Generate WhatsApp URL for admin notification
+  let whatsappUrl = '';
+  try {
+    const settings = await getSettings();
+    const phone = settings.whatsapp_number;
+    if (phone) {
+      const message = formatOrderMessage({ ...order, site_url: settings.site_url || 'http://localhost:3000' }, user, orderItems);
+      const encoded = encodeURIComponent(message);
+      whatsappUrl = `https://wa.me/${phone}?text=${encoded}`;
+    }
+  } catch (err) {
+    console.error('Erro ao gerar WhatsApp:', err.message);
+  }
 
-  res.json({ success: true, orderId });
+  res.json({ success: true, orderId, whatsappUrl });
 }));
 
 router.get('/confirmation/:id', authMiddleware, asyncHandler(async (req, res) => {
