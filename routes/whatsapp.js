@@ -28,15 +28,9 @@ function formatOrderMessage(order, user, items) {
     lines.push(`📝 *Observações:* ${order.notes}`);
   }
   lines.push('');
-  lines.push('👤 *Meus Dados*');
-  lines.push(`Nome: ${user.full_name}`);
-  lines.push(`Email: ${user.email}`);
-  lines.push(`Telefone: ${user.phone}`);
-  lines.push(`Endereço: ${user.street}, ${user.number}${user.complement ? ' - ' + user.complement : ''}`);
-  lines.push(`Bairro: ${user.neighborhood} | ${user.city}/${user.state}`);
-  lines.push(`CEP: ${user.zip_code}`);
+  lines.push(`👤 *Cliente: ${user.full_name}*`);
   lines.push('');
-  lines.push('✅ *Aguardando confirmação!*');
+  lines.push('✅ *Aguardando confirmação!');
   lines.push(`🔗 ${order.site_url || 'http://localhost:3000'}/admin/orders/${order.id}`);
   return lines.join('\n');
 }
