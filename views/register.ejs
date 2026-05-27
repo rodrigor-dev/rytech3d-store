@@ -48,19 +48,19 @@
               <input type="password" id="confirm_password" name="confirm_password" placeholder="Repita a senha" minlength="6" required>
             </div>
           </div>
-          <h3 class="form-section-title">Endereço</h3>
+          <h3 class="form-section-title">Endereço <small style="font-weight:400;color:var(--text-muted)">(opcional)</small></h3>
           <div class="form-row">
             <div class="form-group">
-              <label for="zip_code">CEP *</label>
-              <input type="text" id="zip_code" name="zip_code" placeholder="74000-000" value="<%= formData.zip_code || '' %>" maxlength="9" oninput="formatCEP(this)" required>
+              <label for="zip_code">CEP</label>
+              <input type="text" id="zip_code" name="zip_code" placeholder="74000-000" value="<%= formData.zip_code || '' %>" maxlength="9" oninput="formatCEP(this)">
             </div>
             <div class="form-group">
-              <label for="city">Cidade *</label>
-              <input type="text" id="city" name="city" placeholder="Goiânia" value="<%= formData.city || '' %>" required>
+              <label for="city">Cidade</label>
+              <input type="text" id="city" name="city" placeholder="Goiânia" value="<%= formData.city || '' %>">
             </div>
             <div class="form-group">
-              <label for="state">Estado *</label>
-              <select id="state" name="state" required>
+              <label for="state">Estado</label>
+              <select id="state" name="state">
                 <option value="">Selecione</option>
                 <% ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'].forEach(uf => { %>
                   <option value="<%= uf %>" <%= formData.state === uf ? 'selected' : '' %>><%= uf %></option>
@@ -70,12 +70,12 @@
           </div>
           <div class="form-row">
             <div class="form-group">
-              <label for="street">Logradouro *</label>
-              <input type="text" id="street" name="street" placeholder="Rua, Avenida..." value="<%= formData.street || '' %>" required>
+              <label for="street">Logradouro</label>
+              <input type="text" id="street" name="street" placeholder="Rua, Avenida..." value="<%= formData.street || '' %>">
             </div>
             <div class="form-group form-group-sm">
-              <label for="number">Número *</label>
-              <input type="text" id="number" name="number" placeholder="Nº" value="<%= formData.number || '' %>" required>
+              <label for="number">Número</label>
+              <input type="text" id="number" name="number" placeholder="Nº" value="<%= formData.number || '' %>">
             </div>
             <div class="form-group">
               <label for="complement">Complemento</label>
@@ -83,8 +83,8 @@
             </div>
           </div>
           <div class="form-group">
-            <label for="neighborhood">Bairro *</label>
-            <input type="text" id="neighborhood" name="neighborhood" placeholder="Seu bairro" value="<%= formData.neighborhood || '' %>" required>
+            <label for="neighborhood">Bairro</label>
+            <input type="text" id="neighborhood" name="neighborhood" placeholder="Seu bairro" value="<%= formData.neighborhood || '' %>">
           </div>
           <button type="submit" class="btn btn-primary btn-block">Criar Conta e Finalizar Pedido</button>
         </form>

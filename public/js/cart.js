@@ -44,13 +44,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function updateCartBadge() {
-  const badge = document.getElementById('cartBadge');
-  if (badge) {
-    const cart = getCart();
-    const total = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const cart = getCart();
+  const total = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const badges = document.querySelectorAll('.cart-badge');
+  badges.forEach(badge => {
     badge.textContent = total;
     badge.style.display = total > 0 ? 'flex' : 'none';
-  }
+  });
 }
 
 function clearCart() {

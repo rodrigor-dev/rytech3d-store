@@ -26,6 +26,13 @@ function validateCPF(cpf) {
 
 router.get('/login', asyncHandler(async (req, res) => {
   const token = req.cookies?.token;
+  const adminToken = req.cookies?.admin_token;
+  if (adminToken) {
+    try {
+      const decoded = jwt.verify(adminToken, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+      if (decoded.role === 'admin') return res.redirect('/admin');
+    } catch {}
+  }
   if (token) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
@@ -43,8 +50,8 @@ router.post('/register', asyncHandler(async (req, res) => {
   try {
     const { full_name, cpf, email, password, confirm_password, phone, street, number, complement, neighborhood, city, state, zip_code } = req.body;
 
-    if (!full_name || !cpf || !email || !password || !confirm_password || !phone || !street || !number || !neighborhood || !city || !state || !zip_code) {
-      return res.render('register', { error: 'Todos os campos obrigatórios devem ser preenchidos.', formData: req.body });
+    if (!full_name || !cpf || !email || !password || !confirm_password || !phone) {
+      return res.render('register', { error: 'Preencha todos os campos obrigatórios.', formData: req.body });
     }
 
     if (password.length < 6) {
@@ -95,6 +102,15 @@ router.post('/login', asyncHandler(async (req, res) => {
       return res.render('login', { error: 'Preencha email e senha.', redirect: redirect || '/checkout' });
     }
 
+    // Check if admin first
+    const admin = await prepare('SELECT * FROM admins WHERE email = ? OR username = ?').get(email, email);
+    if (admin && bcrypt.compareSync(password, admin.password)) {
+      const token = generateAdminToken(admin);
+      res.cookie('admin_token', token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+      return res.redirect('/admin');
+    }
+
+    // Then check regular user
     const user = await prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.render('login', { error: 'Email ou senha incorretos.', redirect: redirect || '/checkout' });

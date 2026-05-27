@@ -19,9 +19,15 @@
         <span class="logo-icon">⚡</span>
         <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
       </a>
-      <button class="nav-toggle" id="navToggle" aria-label="Menu">
-        <span></span><span></span><span></span>
-      </button>
+      <div class="nav-mobile-right">
+        <a href="/cart" class="nav-link mobile-cart-link">
+          <i class="fas fa-shopping-cart"></i>
+          <span class="cart-badge" id="mobileCartBadge">0</span>
+        </a>
+        <button class="nav-toggle" id="navToggle" aria-label="Menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
       <div class="nav-links" id="navLinks">
         <a href="/" class="nav-link <%= currentPath === '/' ? 'active' : '' %>">Início</a>
         <a href="/#produtos" class="nav-link">Produtos</a>

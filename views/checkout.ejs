@@ -2,6 +2,10 @@
 
 <style>
 .checkout-item-variations { font-size: 0.8rem; color: var(--text-muted); margin: 2px 0 4px; }
+.checkout-delivery-notice { display:flex; gap:12px; background:rgba(0,212,170,0.05); border:1px solid rgba(0,212,170,0.1); border-radius:var(--radius); padding:16px; margin-top:16px; align-items:flex-start; }
+.checkout-delivery-notice i { font-size:1.5rem; color:var(--accent); margin-top:2px; }
+.checkout-delivery-notice strong { display:block; margin-bottom:4px; font-size:0.95rem; }
+.checkout-delivery-notice p { font-size:0.85rem; color:var(--text-secondary); margin:0; }
 </style>
 <section class="section checkout-section">
   <div class="container">
@@ -15,16 +19,34 @@
 
         <div class="checkout-card">
           <div class="checkout-card-header">
-            <i class="fas fa-map-marker-alt"></i>
-            <h2>Endereço de Entrega</h2>
+            <i class="fas fa-user"></i>
+            <h2>Seus Dados</h2>
           </div>
           <div class="checkout-card-body">
-            <p><strong><%= user.full_name %></strong></p>
-            <p><%= user.street %>, <%= user.number %><%= user.complement ? ' - ' + user.complement : '' %></p>
-            <p><%= user.neighborhood %> - <%= user.city %>/<%= user.state %></p>
-            <p>CEP: <%= user.zip_code.replace(/(\d{5})(\d{3})/, '$1-$2') %></p>
-            <p>Telefone: <%= user.phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3') %></p>
-            <a href="/profile" class="btn btn-small btn-outline">Alterar Endereço</a>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="checkoutName">Nome Completo</label>
+                <input type="text" id="checkoutName" class="form-control" value="<%= user.full_name %>">
+              </div>
+              <div class="form-group">
+                <label>Email</label>
+                <input type="email" class="form-control" value="<%= user.email %>" disabled>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label for="checkoutPhone">Telefone</label>
+                <input type="text" id="checkoutPhone" class="form-control" value="<%= user.phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3') %>" oninput="formatPhone(this)" maxlength="15">
+              </div>
+              <div class="form-group"></div>
+            </div>
+            <div class="checkout-delivery-notice">
+              <i class="fas fa-truck"></i>
+              <div>
+                <strong>Entrega a Combinar</strong>
+                <p>O prazo e a forma de entrega serão combinados diretamente com você após a confirmação do pedido.</p>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -131,12 +153,14 @@ async function placeOrder() {
   }
 
   const notes = document.getElementById('orderNotes').value;
+  const full_name = document.getElementById('checkoutName').value;
+  const phone = document.getElementById('checkoutPhone').value;
 
   try {
     const response = await fetch('/place', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: cart, notes })
+      body: JSON.stringify({ items: cart, notes, full_name, phone })
     });
 
     const data = await response.json();
@@ -154,6 +178,14 @@ async function placeOrder() {
     btn.disabled = false;
     btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pedido';
   }
+}
+
+function formatPhone(input) {
+  let v = input.value.replace(/\D/g, '').substring(0, 11);
+  if (v.length > 2) v = '(' + v.substring(0, 2) + ') ' + v.substring(2);
+  if (v.length > 10) v = v.substring(0, 10) + '-' + v.substring(10);
+  else if (v.length > 8) v = v.substring(0, 8) + '-' + v.substring(8);
+  input.value = v;
 }
 
 document.addEventListener('DOMContentLoaded', renderCheckoutItems);

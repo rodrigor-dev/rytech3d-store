@@ -13,9 +13,18 @@ router.get('/checkout', authMiddleware, asyncHandler(async (req, res) => {
 }));
 
 router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
-  const { items, notes } = req.body;
+  const { items, notes, full_name, phone } = req.body;
   if (!items || !Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'Carrinho vazio.' });
+  }
+
+  // Update user data if provided
+  if (full_name || phone) {
+    const updates = {};
+    if (full_name) updates.full_name = full_name;
+    if (phone) updates.phone = phone.replace(/\D/g, '');
+    await prepare(`UPDATE users SET full_name = ?, phone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+      .run(updates.full_name || '', updates.phone || '', req.user.id);
   }
 
   let total = 0;
