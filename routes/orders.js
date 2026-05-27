@@ -23,8 +23,14 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
     const updates = {};
     if (full_name) updates.full_name = full_name;
     if (phone) updates.phone = phone.replace(/\D/g, '');
-    await prepare(`UPDATE users SET full_name = ?, phone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
-      .run(updates.full_name || '', updates.phone || '', req.user.id);
+    const setClauses = [];
+    const values = [];
+    if (updates.full_name !== undefined) { setClauses.push('full_name = ?'); values.push(updates.full_name); }
+    if (updates.phone !== undefined) { setClauses.push('phone = ?'); values.push(updates.phone); }
+    if (setClauses.length > 0) {
+      await prepare(`UPDATE users SET ${setClauses.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+        .run(...values, req.user.id);
+    }
   }
 
   let total = 0;
