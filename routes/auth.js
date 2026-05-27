@@ -133,10 +133,10 @@ router.post('/profile/update', asyncHandler(async (req, res) => {
     const token = req.cookies?.token;
     if (!token) return res.status(401).json({ error: 'Não autenticado' });
     const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
-    const { phone, street, number, complement, neighborhood, city, state, zip_code } = req.body;
+    const { full_name, phone, street, number, complement, neighborhood, city, state, zip_code } = req.body;
 
-    await prepare(`UPDATE users SET phone=?, street=?, number=?, complement=?, neighborhood=?, city=?, state=?, zip_code=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-      .run(phone.replace(/\D/g, ''), street, number, complement || '', neighborhood, city, state, zip_code.replace(/\D/g, ''), decoded.id);
+    await prepare(`UPDATE users SET full_name=?, phone=?, street=?, number=?, complement=?, neighborhood=?, city=?, state=?, zip_code=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+      .run(full_name || '', phone.replace(/\D/g, ''), street, number, complement || '', neighborhood, city, state, zip_code.replace(/\D/g, ''), decoded.id);
 
     const user = await prepare('SELECT id, full_name, cpf, email, phone, street, number, complement, neighborhood, city, state, zip_code FROM users WHERE id = ?').get(decoded.id);
     res.render('profile', { user, success: 'Dados atualizados com sucesso!', error: null });
