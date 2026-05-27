@@ -201,7 +201,7 @@ async function getSettings() {
 
 const SCHEMA = isPg() ? `
   CREATE TABLE IF NOT EXISTS users (
-    id SERIAL PRIMARY KEY, full_name TEXT NOT NULL, cpf TEXT NOT NULL UNIQUE,
+    id SERIAL PRIMARY KEY, full_name TEXT NOT NULL, cpf TEXT DEFAULT '',
     email TEXT NOT NULL UNIQUE, password TEXT NOT NULL, phone TEXT NOT NULL,
     street TEXT NOT NULL, number TEXT NOT NULL, complement TEXT DEFAULT '',
     neighborhood TEXT NOT NULL, city TEXT NOT NULL, state TEXT NOT NULL,
@@ -249,7 +249,7 @@ const SCHEMA = isPg() ? `
 ` : `
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, full_name TEXT NOT NULL,
-    cpf TEXT NOT NULL UNIQUE, email TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
+    cpf TEXT DEFAULT '', email TEXT NOT NULL UNIQUE, password TEXT NOT NULL,
     phone TEXT NOT NULL, street TEXT NOT NULL, number TEXT NOT NULL,
     complement TEXT DEFAULT '', neighborhood TEXT NOT NULL, city TEXT NOT NULL,
     state TEXT NOT NULL, zip_code TEXT NOT NULL, google_id TEXT DEFAULT NULL,
@@ -322,6 +322,8 @@ async function initDatabase() {
     await _pool.query('SELECT 1');
     console.log('🐘 Conectado ao PostgreSQL');
     await _pool.query(SCHEMA);
+    try { await _pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration google_id:', e.message); }
+    try { await _pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_cpf_key"); } catch (e) { console.log('pg drop cpf constraint:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
     const initSqlJs = require('sql.js');
