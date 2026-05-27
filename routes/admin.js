@@ -220,8 +220,6 @@ router.post('/products/save', mixedUpload.fields([
       await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, allImages[i], sortOrder++);
     }
 
-    }
-
     res.redirect('/admin/products');
   } catch (err) {
     console.error('Erro ao salvar produto:', err);
