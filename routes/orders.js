@@ -84,6 +84,15 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
     console.error('Erro ao gerar WhatsApp:', err.message);
   }
 
+  // Auto-create revenue transaction
+  try {
+    const itemNames = orderItems.map(i => `${i.product_name} x${i.quantity}`).join(', ');
+    await prepare('INSERT INTO transactions (type, category, description, amount, order_id, date) VALUES (?, ?, ?, ?, ?, ?)')
+      .run('revenue', 'order', `Pedido #${orderId}: ${itemNames}`, total, orderId, new Date().toISOString().split('T')[0]);
+  } catch (err) {
+    console.error('Erro ao criar transação de receita:', err.message);
+  }
+
   res.json({ success: true, orderId, whatsappUrl });
 }));
 

@@ -80,7 +80,10 @@ app.use((err, req, res, next) => {
   console.error('❌ ERRO NÃO TRATADO:', err);
   console.error('Stack:', err.stack);
   if (err.name === 'MulterError') {
-    return res.status(400).send('Erro no upload: ' + err.message);
+    return res.status(400).json({ error: 'Erro no upload: ' + err.message });
+  }
+  if (req.xhr || req.headers.accept?.includes('json')) {
+    return res.status(500).json({ error: 'Erro interno do servidor' });
   }
   res.status(500).send('Erro interno do servidor: ' + err.message);
 });

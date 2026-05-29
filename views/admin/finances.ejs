@@ -1,0 +1,271 @@
+<%- include('partials/header', { title: 'Finanças' }) %>
+
+<style>
+.finance-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.finance-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); }
+.finance-card .label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.finance-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
+.finance-card .value.positive { color: var(--accent); }
+.finance-card .value.negative { color: var(--red); }
+.finance-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+.finance-nav select, .finance-nav input { padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); font-size: 0.9rem; }
+.btn-icon { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); cursor: pointer; transition: 0.2s; }
+.btn-icon:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+table.finance-table { width: 100%; border-collapse: collapse; }
+table.finance-table th { text-align: left; padding: 10px 12px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
+table.finance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+.tag-revenue { background: rgba(0,212,170,0.15); color: var(--accent); }
+.tag-expense { background: rgba(239,68,68,0.15); color: var(--red); }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.active { display: flex; }
+.modal-box { background: var(--bg-primary); border-radius: var(--radius); padding: 28px; width: 90%; max-width: 480px; border: 1px solid var(--border); }
+.modal-box h3 { margin: 0 0 16px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 12px; }
+.calendar-header { text-align: center; padding: 6px; font-size: 0.75rem; color: var(--text-muted); font-weight: 600; }
+.calendar-day { text-align: center; padding: 8px 4px; border-radius: 6px; font-size: 0.85rem; cursor: pointer; transition: 0.2s; min-height: 60px; background: var(--bg-secondary); border: 1px solid transparent; }
+.calendar-day:hover { border-color: var(--accent); }
+.calendar-day .day-num { font-weight: 600; }
+.calendar-day .day-amount { font-size: 0.7rem; color: var(--accent); }
+.calendar-day .day-expense { font-size: 0.7rem; color: var(--red); }
+.calendar-day.other-month { opacity: 0.3; }
+.calendar-day.today { border-color: var(--accent); }
+.calendar-legend { display: flex; gap: 16px; margin-top: 12px; font-size: 0.8rem; color: var(--text-muted); }
+</style>
+
+<div class="admin-content">
+  <h1>Finanças</h1>
+
+  <% if (error) { %><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success %></div><% } %>
+
+  <div class="finance-summary">
+    <div class="finance-card">
+      <div class="label">Receitas</div>
+      <div class="value positive">R$ <%= totalRevenue.toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card">
+      <div class="label">Despesas</div>
+      <div class="value negative">R$ <%= totalExpenses.toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card">
+      <div class="label">Saldo</div>
+      <div class="value <%= (totalRevenue - totalExpenses) >= 0 ? 'positive' : 'negative' %>">R$ <%= (totalRevenue - totalExpenses).toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card">
+      <div class="label">Vendas (Pedidos)</div>
+      <div class="value positive">R$ <%= orderTotals.toFixed(2).replace('.', ',') %></div>
+    </div>
+  </div>
+
+  <div class="finance-nav">
+    <form method="GET" action="/admin/finances" style="display:flex;align-items:center;gap:8px">
+      <select name="month" onchange="this.form.submit()">
+        <% for (let i = 1; i <= 12; i++) { %>
+          <option value="<%= i %>" <%= currentMonth === i ? 'selected' : '' %>><%= ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][i] %></option>
+        <% } %>
+      </select>
+      <input type="number" name="year" value="<%= currentYear %>" min="2020" max="2099" onchange="this.form.submit()" style="width:80px">
+      <noscript><button type="submit" class="btn btn-small">Filtrar</button></noscript>
+    </form>
+    <div style="flex:1"></div>
+    <button class="btn btn-primary btn-small" onclick="openAddModal()"><i class="fas fa-plus"></i> Nova Transação</button>
+  </div>
+
+  <!-- Calendar View -->
+  <div class="admin-card" style="margin-bottom:24px">
+    <div class="admin-card-header"><h2>Calendário</h2></div>
+    <div class="admin-card-body">
+      <%
+        const firstDay = new Date(currentYear, currentMonth - 1, 1).getDay();
+        const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+        const today = new Date();
+        const dayMap = {};
+        transactions.forEach(t => {
+          const d = parseInt(t.date.split('-')[2]);
+          if (!dayMap[d]) dayMap[d] = { revenue: 0, expense: 0 };
+          if (t.type === 'revenue') dayMap[d].revenue += t.amount;
+          else dayMap[d].expense += t.amount;
+        });
+      %>
+      <div class="calendar-grid">
+        <% ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].forEach(d => { %>
+          <div class="calendar-header"><%= d %></div>
+        <% }) %>
+        <% for (let i = 0; i < firstDay; i++) { %>
+          <div class="calendar-day other-month"></div>
+        <% } %>
+        <% for (let d = 1; d <= daysInMonth; d++) { %>
+          <div class="calendar-day <%= (currentYear === today.getFullYear() && currentMonth === today.getMonth() + 1 && d === today.getDate()) ? 'today' : '' %>">
+            <div class="day-num"><%= d %></div>
+            <% if (dayMap[d]) { %>
+              <% if (dayMap[d].revenue > 0) { %><div class="day-amount">+R$ <%= dayMap[d].revenue.toFixed(2).replace('.',',') %></div><% } %>
+              <% if (dayMap[d].expense > 0) { %><div class="day-expense">-R$ <%= dayMap[d].expense.toFixed(2).replace('.',',') %></div><% } %>
+            <% } %>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transactions Table -->
+  <div class="admin-card">
+    <div class="admin-card-header"><h2>Transações</h2></div>
+    <div class="admin-card-body" style="overflow-x:auto">
+      <% if (transactions.length === 0) { %>
+        <div class="empty-state" style="padding:40px 0">
+          <i class="fas fa-coins"></i>
+          <h3>Nenhuma transação neste mês</h3>
+          <p>Clique em "Nova Transação" para adicionar.</p>
+        </div>
+      <% } else { %>
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>Categoria</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% transactions.forEach(t => { %>
+              <tr>
+                <td><%= new Date(t.date).toLocaleDateString('pt-BR') %></td>
+                <td><span class="tag <%= t.type === 'revenue' ? 'tag-revenue' : 'tag-expense' %>"><%= t.type === 'revenue' ? 'Receita' : 'Despesa' %></span></td>
+                <td><%= t.category || '-' %></td>
+                <td><%= t.description || '-' %></td>
+                <td style="font-weight:600;color:<%= t.type === 'revenue' ? 'var(--accent)' : 'var(--red)' %>">R$ <%= t.amount.toFixed(2).replace('.', ',') %></td>
+                <td>
+                  <button class="btn-icon" onclick='openEditModal(<%= JSON.stringify(t) %>)' title="Editar"><i class="fas fa-edit"></i></button>
+                  <form method="POST" action="/admin/finances/delete/<%= t.id %>" style="display:inline" onsubmit="return confirm('Excluir esta transação?')">
+                    <button class="btn-icon" style="border-color:transparent" title="Excluir"><i class="fas fa-trash" style="color:var(--red)"></i></button>
+                  </form>
+                </td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Add Modal -->
+<div class="modal-overlay" id="addModal">
+  <div class="modal-box">
+    <h3>Nova Transação</h3>
+    <form method="POST" action="/admin/finances/add">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo *</label>
+          <select name="type" class="form-control" required>
+            <option value="revenue">Receita</option>
+            <option value="expense">Despesa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select name="category" class="form-control">
+            <option value="">Selecione</option>
+            <option value="order">Pedido</option>
+            <option value="material">Material</option>
+            <option value="energy">Energia</option>
+            <option value="packaging">Embalagem</option>
+            <option value="freight">Frete</option>
+            <option value="maintenance">Manutenção</option>
+            <option value="other">Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" name="description" class="form-control">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$) *</label>
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" required>
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" name="date" class="form-control" value="<%= new Date().toISOString().split('T')[0] %>">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('addModal').classList.remove('active')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal-overlay" id="editModal">
+  <div class="modal-box">
+    <h3>Editar Transação</h3>
+    <form method="POST" id="editForm">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Tipo</label>
+          <select name="type" class="form-control" id="editType" required>
+            <option value="revenue">Receita</option>
+            <option value="expense">Despesa</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Categoria</label>
+          <select name="category" class="form-control" id="editCategory">
+            <option value="">Selecione</option>
+            <option value="order">Pedido</option>
+            <option value="material">Material</option>
+            <option value="energy">Energia</option>
+            <option value="packaging">Embalagem</option>
+            <option value="freight">Frete</option>
+            <option value="maintenance">Manutenção</option>
+            <option value="other">Outro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Descrição</label>
+        <input type="text" name="description" class="form-control" id="editDesc">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Valor (R$)</label>
+          <input type="number" name="amount" step="0.01" min="0" class="form-control" id="editAmount" required>
+        </div>
+        <div class="form-group">
+          <label>Data</label>
+          <input type="date" name="date" class="form-control" id="editDate">
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-outline" onclick="document.getElementById('editModal').classList.remove('active')">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+function openAddModal() { document.getElementById('addModal').classList.add('active'); }
+function openEditModal(t) {
+  document.getElementById('editType').value = t.type;
+  document.getElementById('editCategory').value = t.category || '';
+  document.getElementById('editDesc').value = t.description || '';
+  document.getElementById('editAmount').value = t.amount;
+  document.getElementById('editDate').value = t.date;
+  document.getElementById('editForm').action = '/admin/finances/edit/' + t.id;
+  document.getElementById('editModal').classList.add('active');
+}
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('active'); });
+});
+</script>
+
+<%- include('partials/footer') %>

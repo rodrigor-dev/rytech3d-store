@@ -256,6 +256,24 @@ const SCHEMA = isPg() ? `
     price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0
   );
   CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  CREATE TABLE IF NOT EXISTS transactions (
+    id SERIAL PRIMARY KEY, type TEXT NOT NULL DEFAULT 'revenue',
+    category TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
+    amount REAL NOT NULL DEFAULT 0, order_id INTEGER REFERENCES orders(id),
+    date TEXT NOT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS cost_settings (
+    id SERIAL PRIMARY KEY, key TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+    value REAL NOT NULL DEFAULT 0, unit TEXT DEFAULT '', category TEXT DEFAULT 'fixed'
+  );
+  CREATE TABLE IF NOT EXISTS product_costs (
+    id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0,
+    filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0,
+    energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0,
+    additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
 ` : `
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT, full_name TEXT NOT NULL,
@@ -314,6 +332,25 @@ const SCHEMA = isPg() ? `
     price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS transactions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, type TEXT NOT NULL DEFAULT 'revenue',
+    category TEXT NOT NULL DEFAULT '', description TEXT NOT NULL DEFAULT '',
+    amount REAL NOT NULL DEFAULT 0, order_id INTEGER,
+    date TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE TABLE IF NOT EXISTS cost_settings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, key TEXT NOT NULL UNIQUE, name TEXT NOT NULL,
+    value REAL NOT NULL DEFAULT 0, unit TEXT DEFAULT '', category TEXT DEFAULT 'fixed'
+  );
+  CREATE TABLE IF NOT EXISTS product_costs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
+    filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0,
+    filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0,
+    energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0,
+    additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+  );
 `;
 
 // ─── Init ────────────────────────────────────────────────────────────────────
@@ -334,6 +371,7 @@ async function initDatabase() {
     await _pool.query(SCHEMA);
     try { await _pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration google_id:', e.message); }
     try { await _pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_cpf_key"); } catch (e) { console.log('pg drop cpf constraint:', e.message); }
+    try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0"); } catch (e) { console.log('pg migration cost_price:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
     const initSqlJs = require('sql.js');
@@ -352,6 +390,7 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE order_items ADD COLUMN variations TEXT DEFAULT '[]'"); } catch {}
     try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_variations (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, group_name TEXT NOT NULL, variation_name TEXT NOT NULL, price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
     try { _sqlite.exec("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT NULL"); } catch {}
+    try { _sqlite.exec("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }
@@ -397,7 +436,18 @@ async function initDatabase() {
     await s.run('site_name', 'RYTECH3D');
     await s.run('site_url', process.env.SITE_URL || 'http://localhost:3000');
     await s.run('logo_url', '');
-    console.log('⚙️ Configurações padrão criadas');
+  }
+
+  // Seed default cost settings
+  const costSettingsCount = await prepare('SELECT COUNT(*) as count FROM cost_settings').get();
+  if (costSettingsCount.count === 0) {
+    const cs = await prepare('INSERT INTO cost_settings (key, name, value, unit, category) VALUES (?, ?, ?, ?, ?)');
+    await cs.run('energy_rate', 'Tarifa de Energia (kWh)', 0.80, 'R$/kWh', 'fixed');
+    await cs.run('printer_power', 'Consumo da Impressora', 0.3, 'kWh', 'fixed');
+    await cs.run('packaging_cost', 'Custo de Embalagem', 5.00, 'R$', 'fixed');
+    await cs.run('other_costs', 'Outros Custos Fixos', 2.00, 'R$', 'fixed');
+    await cs.run('filament_price', 'Preço do Filamento (por grama)', 0.10, 'R$/g', 'variable');
+    console.log('⚙️ Custos padrão criados');
   }
 
   console.log('✅ Banco de dados inicializado!');

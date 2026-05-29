@@ -1,0 +1,117 @@
+<%- include('partials/header', { title: 'Custos' }) %>
+
+<style>
+.cost-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.cost-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 16px; border: 1px solid var(--border); }
+.cost-card .label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.cost-card .value { font-size: 1.3rem; font-weight: 700; margin-top: 2px; }
+.cost-card .unit { font-size: 0.75rem; color: var(--text-muted); }
+.cost-card form { margin-top: 8px; display: flex; gap: 6px; align-items: center; }
+.cost-card form input { width: 90px; padding: 4px 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg-primary); color: var(--text); font-size: 0.85rem; }
+.cost-card form button { padding: 4px 10px; font-size: 0.8rem; }
+</style>
+
+<div class="admin-content">
+  <h1>Custos</h1>
+
+  <% if (error) { %><div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><i class="fas fa-check-circle"></i> <%= success %></div><% } %>
+
+  <!-- Fixed Costs -->
+  <div class="admin-card" style="margin-bottom:24px">
+    <div class="admin-card-header"><h2>Custos Fixos Pré-Definidos</h2></div>
+    <div class="admin-card-body">
+      <div class="cost-grid">
+        <% costSettings.filter(s => s.category === 'fixed').forEach(s => { %>
+          <div class="cost-card">
+            <div class="label"><%= s.name %></div>
+            <div class="value">R$ <%= s.value.toFixed(2).replace('.', ',') %> <span class="unit"><%= s.unit %></span></div>
+            <form method="POST" action="/admin/costs/settings">
+              <input type="hidden" name="key" value="<%= s.key %>">
+              <input type="number" name="value" step="0.01" value="<%= s.value %>" required>
+              <button type="submit" class="btn btn-primary btn-small"><i class="fas fa-save"></i></button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Variable Costs (global) -->
+  <div class="admin-card" style="margin-bottom:24px">
+    <div class="admin-card-header"><h2>Custos Variáveis (Globais)</h2></div>
+    <div class="admin-card-body">
+      <div class="cost-grid">
+        <% costSettings.filter(s => s.category === 'variable').forEach(s => { %>
+          <div class="cost-card">
+            <div class="label"><%= s.name %></div>
+            <div class="value">R$ <%= s.value.toFixed(2).replace('.', ',') %> <span class="unit"><%= s.unit %></span></div>
+            <form method="POST" action="/admin/costs/settings">
+              <input type="hidden" name="key" value="<%= s.key %>">
+              <input type="number" name="value" step="0.01" value="<%= s.value %>" required>
+              <button type="submit" class="btn btn-primary btn-small"><i class="fas fa-save"></i></button>
+            </form>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-Product Costs -->
+  <div class="admin-card">
+    <div class="admin-card-header"><h2>Custos por Produto</h2></div>
+    <div class="admin-card-body" style="overflow-x:auto">
+      <% if (products.length === 0) { %>
+        <div class="empty-state" style="padding:40px 0">
+          <i class="fas fa-box-open"></i>
+          <h3>Nenhum produto cadastrado</h3>
+          <p>Cadastre produtos primeiro para gerenciar custos.</p>
+        </div>
+      <% } else { %>
+        <table class="finance-table">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Preço Venda</th>
+              <th>Filamento (g)</th>
+              <th>Horas Impressão</th>
+              <th>Preço Filamento (R$/g)</th>
+              <th>Custo Material</th>
+              <th>Custo Energia</th>
+              <th>Embalagem</th>
+              <th>Outros</th>
+              <th>Custo Total</th>
+              <th>Margem</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% products.forEach(p => { %>
+              <% const pc = costMap[p.id] || {}; %>
+              <% const totalCost = pc.total_cost || 0; %>
+              <% const margin = p.price > 0 ? ((p.price - totalCost) / p.price * 100) : 0; %>
+              <tr>
+                <td><%= p.name %></td>
+                <td style="font-weight:600">R$ <%= p.price.toFixed(2).replace('.', ',') %></td>
+                <form method="POST" action="/admin/costs/save/<%= p.id %>" style="display:contents">
+                  <td><input type="number" name="filament_grams" step="0.1" value="<%= pc.filament_grams || 0 %>" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text)"></td>
+                  <td><input type="number" name="print_hours" step="0.1" value="<%= pc.print_hours || 0 %>" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text)"></td>
+                  <td><input type="number" name="filament_price" step="0.001" value="<%= pc.filament_price || settingsObj.filament_price || 0 %>" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text)"></td>
+                  <td style="color:var(--accent)">R$ <%= (pc.material_cost || 0).toFixed(2).replace('.', ',') %></td>
+                  <td style="color:var(--accent)">R$ <%= (pc.energy_cost || 0).toFixed(2).replace('.', ',') %></td>
+                  <td><input type="number" name="packaging_cost" step="0.01" value="<%= pc.packaging_cost || settingsObj.packaging_cost || 0 %>" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text)"></td>
+                  <td><input type="number" name="additional_cost" step="0.01" value="<%= pc.additional_cost || settingsObj.other_costs || 0 %>" style="width:70px;padding:4px 6px;border-radius:6px;border:1px solid var(--border);background:var(--bg-primary);color:var(--text)"></td>
+                  <td style="font-weight:700">R$ <%= totalCost.toFixed(2).replace('.', ',') %></td>
+                  <td style="color:<%= margin >= 30 ? 'var(--accent)' : margin >= 10 ? 'var(--warning)' : 'var(--red)' %>"><%= margin.toFixed(1) %>%</td>
+                  <td><button type="submit" class="btn btn-primary btn-small"><i class="fas fa-calculator"></i> Calcular</button></td>
+                </form>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
