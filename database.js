@@ -372,6 +372,7 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration google_id:', e.message); }
     try { await _pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_cpf_key"); } catch (e) { console.log('pg drop cpf constraint:', e.message); }
     try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0"); } catch (e) { console.log('pg migration cost_price:', e.message); }
+    try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variations TEXT DEFAULT '[]'"); } catch (e) { console.log('pg migration order_items.variations:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
     const initSqlJs = require('sql.js');

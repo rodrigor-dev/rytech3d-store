@@ -499,25 +499,32 @@ router.post('/products/variations/save', asyncHandler(async (req, res) => {
 
 router.get('/finances', asyncHandler(async (req, res) => {
   try {
-    const { month, year } = req.query;
+    const { start_date, end_date } = req.query;
     const now = new Date();
-    const m = month ? parseInt(month) : (now.getMonth() + 1);
-    const y = year ? parseInt(year) : now.getFullYear();
-    const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
-    const lastDay = new Date(y, m, 0).getDate();
-    const endDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    let sDate, eDate;
+
+    if (start_date && end_date) {
+      sDate = start_date;
+      eDate = end_date;
+    } else {
+      // Default: current month
+      const m = now.getMonth() + 1;
+      const y = now.getFullYear();
+      sDate = `${y}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      eDate = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }
 
     const transactions = await prepare(
       `SELECT * FROM transactions WHERE date >= ? AND date <= ? ORDER BY date DESC, id DESC`
-    ).all(startDate, endDate);
+    ).all(sDate, eDate);
 
     const totalRevenue = transactions.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0);
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-
     const orderTotals = transactions.filter(t => t.category === 'order').reduce((s, t) => s + t.amount, 0);
 
     res.render('admin/finances', {
-      transactions, currentMonth: m, currentYear: y,
+      transactions, startDate: sDate, endDate: eDate,
       totalRevenue, totalExpenses, orderTotals,
       error: null, success: null
     });
@@ -566,81 +573,6 @@ router.post('/finances/delete/:id', asyncHandler(async (req, res) => {
   } catch (err) {
     console.error('Erro ao deletar transação:', err);
     res.status(500).send('Erro ao deletar transação.');
-  }
-}));
-
-// ─── Costs ────────────────────────────────────────────────────────────────────
-
-router.get('/costs', asyncHandler(async (req, res) => {
-  try {
-    const costSettings = await prepare('SELECT * FROM cost_settings ORDER BY category, id').all();
-    const products = await prepare('SELECT * FROM products ORDER BY name').all();
-    const productCosts = await prepare('SELECT * FROM product_costs').all();
-    const costMap = {};
-    productCosts.forEach(pc => costMap[pc.product_id] = pc);
-
-    const settingsObj = {};
-    costSettings.forEach(s => settingsObj[s.key] = s.value);
-
-    res.render('admin/costs', {
-      costSettings, products, costMap, settingsObj,
-      error: null, success: null
-    });
-  } catch (err) {
-    console.error('Erro ao carregar custos:', err);
-    res.status(500).send('Erro ao carregar custos.');
-  }
-}));
-
-router.post('/costs/settings', asyncHandler(async (req, res) => {
-  try {
-    const { key, value } = req.body;
-    if (key && value !== undefined) {
-      await prepare('UPDATE cost_settings SET value = ? WHERE key = ?').run(parseFloat(value), key);
-    }
-    res.redirect('/admin/costs');
-  } catch (err) {
-    console.error('Erro ao salvar configuração de custo:', err);
-    res.status(500).send('Erro ao salvar configuração.');
-  }
-}));
-
-router.post('/costs/save/:id', asyncHandler(async (req, res) => {
-  try {
-    const productId = parseInt(req.params.id);
-    const { filament_grams, print_hours, filament_price, packaging_cost, additional_cost } = req.body;
-
-    const settings = await prepare('SELECT * FROM cost_settings').all();
-    const s = {};
-    settings.forEach(cs => s[cs.key] = cs.value);
-
-    const fg = parseFloat(filament_grams) || 0;
-    const ph = parseFloat(print_hours) || 0;
-    const fp = parseFloat(filament_price) || parseFloat(s.filament_price) || 0;
-    const pc = parseFloat(packaging_cost) || parseFloat(s.packaging_cost) || 0;
-    const ac = parseFloat(additional_cost) || parseFloat(s.other_costs) || 0;
-    const energyRate = parseFloat(s.energy_rate) || 0;
-    const printerPower = parseFloat(s.printer_power) || 0;
-
-    const materialCost = Math.round(fg * fp * 100) / 100;
-    const energyCost = Math.round(ph * printerPower * energyRate * 100) / 100;
-    const totalCost = Math.round((materialCost + energyCost + pc + ac) * 100) / 100;
-
-    const existing = await prepare('SELECT id FROM product_costs WHERE product_id = ?').get(productId);
-    if (existing) {
-      await prepare(`UPDATE product_costs SET filament_grams=?, print_hours=?, filament_price=?, material_cost=?, energy_cost=?, packaging_cost=?, additional_cost=?, total_cost=?, updated_at=CURRENT_TIMESTAMP WHERE product_id=?`)
-        .run(fg, ph, fp, materialCost, energyCost, pc, ac, totalCost, productId);
-    } else {
-      await prepare(`INSERT INTO product_costs (product_id, filament_grams, print_hours, filament_price, material_cost, energy_cost, packaging_cost, additional_cost, total_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(productId, fg, ph, fp, materialCost, energyCost, pc, ac, totalCost);
-    }
-
-    await prepare('UPDATE products SET cost_price = ? WHERE id = ?').run(totalCost, productId);
-
-    res.redirect('/admin/costs');
-  } catch (err) {
-    console.error('Erro ao salvar custo do produto:', err);
-    res.status(500).send('Erro ao salvar custo do produto.');
   }
 }));
 
