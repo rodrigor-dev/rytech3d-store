@@ -351,7 +351,17 @@ router.post('/orders/status/:id', asyncHandler(async (req, res) => {
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ error: 'Status inválido' });
     }
+    const order = await prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+    if (!order) return res.status(404).json({ error: 'Pedido não encontrado' });
+
     await prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(status, req.params.id);
+
+    if (status === 'cancelled') {
+      await prepare("UPDATE transactions SET type = 'cancelled', category = 'cancelled' WHERE order_id = ? AND type = 'revenue'").run(req.params.id);
+    } else if (order.status === 'cancelled' && status !== 'cancelled') {
+      await prepare("UPDATE transactions SET type = 'revenue', category = 'order' WHERE order_id = ? AND type = 'cancelled'").run(req.params.id);
+    }
+
     res.redirect('/admin/orders/' + req.params.id);
   } catch (err) {
     console.error('Erro ao atualizar status:', err);
@@ -521,11 +531,16 @@ router.get('/finances', asyncHandler(async (req, res) => {
 
     const totalRevenue = transactions.filter(t => t.type === 'revenue').reduce((s, t) => s + t.amount, 0);
     const totalExpenses = transactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+    const totalCancelled = transactions.filter(t => t.type === 'cancelled').reduce((s, t) => s + t.amount, 0);
     const orderTotals = transactions.filter(t => t.category === 'order').reduce((s, t) => s + t.amount, 0);
+    const cancelledCount = transactions.filter(t => t.type === 'cancelled').length;
+    const totalOrderTransactions = transactions.filter(t => t.category === 'order' || t.type === 'cancelled').length;
+    const cancelRate = totalOrderTransactions > 0 ? (cancelledCount / totalOrderTransactions * 100) : 0;
 
     res.render('admin/finances', {
       transactions, startDate: sDate, endDate: eDate,
-      totalRevenue, totalExpenses, orderTotals,
+      totalRevenue, totalExpenses, totalCancelled, orderTotals,
+      cancelledCount, cancelRate,
       error: null, success: null
     });
   } catch (err) {

@@ -15,6 +15,7 @@
 .tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
 .tag-revenue { background: rgba(0,212,170,0.15); color: var(--accent); }
 .tag-expense { background: rgba(239,68,68,0.15); color: var(--red); }
+.tag-cancelled { background: rgba(255,159,28,0.15); color: #ff9f1c; }
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
 .modal-overlay.active { display: flex; }
 .modal-box { background: var(--bg-primary); border-radius: var(--radius); padding: 28px; width: 90%; max-width: 480px; border: 1px solid var(--border); }
@@ -46,6 +47,13 @@
     <div class="finance-card">
       <div class="label">Vendas (Pedidos)</div>
       <div class="value positive">R$ <%= orderTotals.toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card" style="border-color: rgba(255,159,28,0.3);">
+      <div class="label">Cancelados</div>
+      <div class="value" style="color:#ff9f1c">R$ <%= totalCancelled.toFixed(2).replace('.', ',') %></div>
+      <div style="font-size:0.8rem;color:var(--text-muted);margin-top:4px">
+        <%= cancelledCount %> pedido<%= cancelledCount !== 1 ? 's' : '' %> (<%= cancelRate.toFixed(1) %>%)
+      </div>
     </div>
   </div>
 
@@ -96,10 +104,10 @@
             <% transactions.forEach(t => { %>
               <tr>
                 <td><%= new Date(t.date).toLocaleDateString('pt-BR') %></td>
-                <td><span class="tag <%= t.type === 'revenue' ? 'tag-revenue' : 'tag-expense' %>"><%= t.type === 'revenue' ? 'Receita' : 'Despesa' %></span></td>
+                <td><span class="tag <%= t.type === 'revenue' ? 'tag-revenue' : t.type === 'cancelled' ? 'tag-cancelled' : 'tag-expense' %>"><%= t.type === 'revenue' ? 'Receita' : t.type === 'cancelled' ? 'Cancelado' : 'Despesa' %></span></td>
                 <td><%= t.category || '-' %></td>
                 <td><%= t.description || '-' %></td>
-                <td style="font-weight:600;color:<%= t.type === 'revenue' ? 'var(--accent)' : 'var(--red)' %>">R$ <%= t.amount.toFixed(2).replace('.', ',') %></td>
+                <td style="font-weight:600;color:<%= t.type === 'revenue' ? 'var(--accent)' : t.type === 'cancelled' ? '#ff9f1c' : 'var(--red)' %>">R$ <%= t.amount.toFixed(2).replace('.', ',') %></td>
                 <td>
                   <button class="btn-icon" onclick='openEditModal(<%= JSON.stringify(t) %>)' title="Editar"><i class="fas fa-edit"></i></button>
                   <form method="POST" action="/admin/finances/delete/<%= t.id %>" style="display:inline" onsubmit="return confirm('Excluir esta transação?')">
