@@ -4,7 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const passport = require('../middleware/passport');
 const { prepare } = require('../database');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, generateAdminToken } = require('../middleware/auth');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 

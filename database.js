@@ -396,22 +396,19 @@ async function initDatabase() {
     console.log('✅ Schema SQLite criado');
   }
 
-  // Seed admins
-  const adminCount = await prepare('SELECT COUNT(*) as count FROM admins').get();
-  if (adminCount.count === 0) {
-    const h1 = bcrypt.hashSync('Rytech3d@2026', 10);
-    const h2 = bcrypt.hashSync('rytech2026', 10);
-    await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('admin', '', h1);
-    await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', h2);
-    console.log('🔑 Admins padrão criados');
-  }
-
-  const emailAdmin = await prepare('SELECT id FROM admins WHERE email = ?').get('rodrigo@admin.com');
-  if (!emailAdmin) {
-    const h = bcrypt.hashSync('rytech2026', 10);
-    await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run('rodrigo-admin', 'rodrigo@admin.com', h);
-    console.log('📧 Admin email adicionado');
-  }
+  // Seed admins — ensure both admin users exist
+  const ensureAdmin = async (username, email, password) => {
+    const existing = await prepare('SELECT id FROM admins WHERE username = ?').get(username);
+    const h = bcrypt.hashSync(password, 10);
+    if (!existing) {
+      await prepare('INSERT INTO admins (username, email, password) VALUES (?, ?, ?)').run(username, email, h);
+      console.log(`🔑 Admin "${username}" criado`);
+    } else if (existing) {
+      await prepare('UPDATE admins SET email = ?, password = ? WHERE username = ?').run(email, h, username);
+    }
+  };
+  await ensureAdmin('admin', '', 'Rytech3d@2026');
+  await ensureAdmin('rodrigo-admin', 'rodrigo@admin.com', 'rytech2026');
 
   // Seed products
   const productCount = await prepare('SELECT COUNT(*) as count FROM products').get();
