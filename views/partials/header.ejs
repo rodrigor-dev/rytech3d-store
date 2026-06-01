@@ -33,6 +33,7 @@
         <% if (currentUser) { %>
           <a href="/my-orders" class="nav-link">Meus Pedidos</a>
           <a href="/profile" class="nav-link"><i class="fas fa-user"></i> <%= currentUser.name.split(' ')[0] %></a>
+          <a href="/logout" class="nav-link" style="color:var(--red)"><i class="fas fa-sign-out-alt"></i> Sair</a>
         <% } else { %>
           <a href="/login" class="nav-link">Entrar</a>
         <% } %>
