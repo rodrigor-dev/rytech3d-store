@@ -372,6 +372,10 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration google_id:', e.message); }
     try { await _pool.query("ALTER TABLE users DROP CONSTRAINT IF EXISTS users_cpf_key"); } catch (e) { console.log('pg drop cpf constraint:', e.message); }
     try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0"); } catch (e) { console.log('pg migration cost_price:', e.message); }
+    try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_data TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration image_data:', e.message); }
+    try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS image_mime TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration image_mime:', e.message); }
+    try { await _pool.query("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_data TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration product_images.image_data:', e.message); }
+    try { await _pool.query("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_mime TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration product_images.image_mime:', e.message); }
     try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variations TEXT DEFAULT '[]'"); } catch (e) { console.log('pg migration order_items.variations:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
@@ -392,6 +396,10 @@ async function initDatabase() {
     try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_variations (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, group_name TEXT NOT NULL, variation_name TEXT NOT NULL, price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
     try { _sqlite.exec("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE products ADD COLUMN image_data TEXT DEFAULT NULL"); } catch {}
+    try { _sqlite.exec("ALTER TABLE products ADD COLUMN image_mime TEXT DEFAULT NULL"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_images ADD COLUMN image_data TEXT DEFAULT NULL"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_images ADD COLUMN image_mime TEXT DEFAULT NULL"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }
@@ -446,6 +454,37 @@ async function initDatabase() {
     await cs.run('other_costs', 'Outros Custos Fixos', 2.00, 'R$', 'fixed');
     await cs.run('filament_price', 'Preço do Filamento (por grama)', 0.10, 'R$/g', 'variable');
     console.log('⚙️ Custos padrão criados');
+  }
+
+  // Backfill image_data for existing products (files on disk -> database)
+  try {
+    const productsMissing = await prepare("SELECT id, image_url FROM products WHERE image_data IS NULL AND image_url != '' AND image_url != '/uploads/products/default.svg'").all();
+    for (const p of productsMissing) {
+      const filePath = path.join(__dirname, 'public', p.image_url);
+      if (fs.existsSync(filePath)) {
+        const buf = fs.readFileSync(filePath);
+        const b64 = buf.toString('base64');
+        const ext = path.extname(p.image_url).toLowerCase().replace('.', '');
+        const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        await prepare('UPDATE products SET image_data = ?, image_mime = ? WHERE id = ?').run(b64, mime, p.id);
+      }
+    }
+    const extrasMissing = await prepare("SELECT id, image_url FROM product_images WHERE image_data IS NULL AND image_url != ''").all();
+    for (const p of extrasMissing) {
+      const filePath = path.join(__dirname, 'public', p.image_url);
+      if (fs.existsSync(filePath)) {
+        const buf = fs.readFileSync(filePath);
+        const b64 = buf.toString('base64');
+        const ext = path.extname(p.image_url).toLowerCase().replace('.', '');
+        const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+        await prepare('UPDATE product_images SET image_data = ?, image_mime = ? WHERE id = ?').run(b64, mime, p.id);
+      }
+    }
+    if (productsMissing.length > 0 || extrasMissing.length > 0) {
+      console.log(`🖼️ Backfill concluído: ${productsMissing.length} produtos, ${extrasMissing.length} imagens extras`);
+    }
+  } catch (err) {
+    console.error('Erro no backfill de imagens:', err.message);
   }
 
   console.log('✅ Banco de dados inicializado!');

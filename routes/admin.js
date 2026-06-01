@@ -11,17 +11,40 @@ const { getSettings } = require('../database');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const dir = path.join(__dirname, '..', 'public', 'uploads', 'products');
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    cb(null, dir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname);
-    cb(null, `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`);
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'products');
+
+const productFileFilter = (req, file, cb) => {
+  if (file.fieldname === 'images') {
+    const allowed = /jpeg|jpg|png|gif|webp/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext && mime) return cb(null, true);
+    return cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
   }
+  if (file.fieldname === 'video_file') {
+    const allowed = /mp4|webm|ogg|mov|avi/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext || mime) return cb(null, true);
+    return cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
+  }
+  cb(new Error('Campo inesperado: ' + file.fieldname));
+};
+
+const mixedUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: productFileFilter
 });
+
+function saveProductFile(buffer, originalname) {
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+  const ext = path.extname(originalname);
+  const filename = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`;
+  const filePath = path.join(uploadsDir, filename);
+  fs.writeFileSync(filePath, buffer);
+  return { url: '/uploads/products/' + filename, path: filePath };
+}
 
 const logoStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -32,28 +55,6 @@ const logoStorage = multer.diskStorage({
   filename: (req, file, cb) => {
     const ext = path.extname(file.originalname);
     cb(null, `logo${ext}`);
-  }
-});
-
-const mixedUpload = multer({
-  storage,
-  limits: { fileSize: 100 * 1024 * 1024 },
-  fileFilter: (req, file, cb) => {
-    if (file.fieldname === 'images') {
-      const allowed = /jpeg|jpg|png|gif|webp/;
-      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-      const mime = allowed.test(file.mimetype);
-      if (ext && mime) return cb(null, true);
-      return cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
-    }
-    if (file.fieldname === 'video_file') {
-      const allowed = /mp4|webm|ogg|mov|avi/;
-      const ext = allowed.test(path.extname(file.originalname).toLowerCase());
-      const mime = allowed.test(file.mimetype);
-      if (ext || mime) return cb(null, true);
-      return cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV) são permitidos.'));
-    }
-    cb(new Error('Campo inesperado: ' + file.fieldname));
   }
 });
 
@@ -154,7 +155,9 @@ router.post('/products/save', mixedUpload.fields([
     const { id, name, description, price, delivery_time, category, featured, active } = req.body;
     let video_url = req.body.video_url_input || '';
     if (req.files && req.files['video_file'] && req.files['video_file'].length > 0) {
-      video_url = '/uploads/products/' + req.files['video_file'][0].filename;
+      const vf = req.files['video_file'][0];
+      const { url } = saveProductFile(vf.buffer, vf.originalname);
+      video_url = url;
     }
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
@@ -163,61 +166,81 @@ router.post('/products/save', mixedUpload.fields([
       });
     }
 
-    let image_url = '/uploads/products/default.svg';
+    const activeValue = active !== undefined ? (active === '1' || active === true ? 1 : 0) : 1;
 
-    // Collect kept existing images
-    const keptImages = [];
+    // Collect kept existing image urls
+    const keptUrls = [];
     if (req.body.existing_images) {
       const urls = Array.isArray(req.body.existing_images) ? req.body.existing_images : [req.body.existing_images];
-      urls.forEach(u => { if (u && u.trim()) keptImages.push(u.trim()); });
+      urls.forEach(u => { if (u && u.trim()) keptUrls.push(u.trim()); });
     }
 
     // Remove deleted existing images from disk
     const removedRaw = req.body.removed_images || '';
     const removed = removedRaw ? removedRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
-
-    // Uploaded files
-    const uploadedFiles = (req.files && req.files['images']) ? req.files['images'] : [];
-
-    // Build final ordered list: kept existing (in order) + new uploads
-    const allImages = [...keptImages];
-    uploadedFiles.forEach(f => {
-      allImages.push('/uploads/products/' + f.filename);
-    });
-
-    if (allImages.length > 0) {
-      image_url = allImages[0]; // first = main
-    }
-
-    // Delete removed images from filesystem
     removed.forEach(url => {
       if (url && url.startsWith('/uploads/')) {
         const filePath = path.join(__dirname, '..', 'public', url);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          console.log('Deleted image:', filePath);
-        }
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
       }
     });
 
-    const activeValue = active !== undefined ? (active === '1' || active === true ? 1 : 0) : 1;
+    // Process newly uploaded files -> save to disk, get base64
+    const uploadedFiles = (req.files && req.files['images']) ? req.files['images'] : [];
+    const newImageEntries = uploadedFiles.map(f => {
+      const { url } = saveProductFile(f.buffer, f.originalname);
+      const data = f.buffer.toString('base64');
+      const mime = f.mimetype;
+      return { url, data, mime };
+    });
 
-    if (id) {
-      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, video_url=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', image_url, video_url || '', featured ? 1 : 0, activeValue, parseInt(id));
-      await prepare('DELETE FROM product_images WHERE product_id = ?').run(id);
-    } else {
-      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, video_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', image_url, video_url || '', featured ? 1 : 0, activeValue);
-      var productId = result.lastInsertRowid;
+    // Build ordered list of all images (kept urls + new uploads)
+    const allImages = [];
+    for (const url of keptUrls) {
+      let data = null, mime = null;
+      const existing = await prepare('SELECT image_data, image_mime FROM products WHERE image_url = ?').get(url);
+      if (existing) { data = existing.image_data; mime = existing.image_mime; }
+      else {
+        const extra = await prepare('SELECT image_data, image_mime FROM product_images WHERE image_url = ?').get(url);
+        if (extra) { data = extra.image_data; mime = extra.image_mime; }
+      }
+      allImages.push({ url, data, mime });
+    }
+    for (const entry of newImageEntries) {
+      allImages.push(entry);
     }
 
-    const targetId = id || productId;
+    let mainImageUrl = '/uploads/products/default.svg';
+    let mainImageData = null;
+    let mainImageMime = null;
+    if (allImages.length > 0) {
+      mainImageUrl = allImages[0].url;
+      mainImageData = allImages[0].data;
+      mainImageMime = allImages[0].mime;
+    }
 
-    // Save extra images (allImages[1+] = extra images)
+    if (id) {
+      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', featured ? 1 : 0, activeValue, parseInt(id));
+      await prepare('DELETE FROM product_images WHERE product_id = ?').run(id);
+      var targetId = id;
+    } else {
+      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, image_data, image_mime, video_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', featured ? 1 : 0, activeValue);
+      let productId = result.lastInsertRowid;
+      if (!productId) {
+        const last = await prepare('SELECT MAX(id) as id FROM products').get();
+        productId = last ? last.id : null;
+      }
+      if (!productId) throw new Error('Falha ao criar produto');
+      var targetId = productId;
+    }
+
     let sortOrder = 1;
     for (let i = 1; i < allImages.length; i++) {
-      await prepare('INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)').run(targetId, allImages[i], sortOrder++);
+      const img = allImages[i];
+      await prepare('INSERT INTO product_images (product_id, image_url, image_data, image_mime, sort_order) VALUES (?, ?, ?, ?, ?)')
+        .run(targetId, img.url, img.data || null, img.mime || null, sortOrder++);
     }
 
     res.redirect('/admin/products');

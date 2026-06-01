@@ -1,6 +1,7 @@
 require('dotenv').config();
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
@@ -33,6 +34,26 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use(async (req, res, next) => {
+  if (!req.path.startsWith('/uploads/')) return next();
+  const filePath = path.join(__dirname, 'public', req.path.replace(/^\//, ''));
+  if (fs.existsSync(filePath)) return next();
+  try {
+    const url = req.path.replace(/\\/g, '/');
+    let row = await prepare('SELECT image_data, image_mime FROM products WHERE image_url = ?').get(url);
+    if (!row) {
+      row = await prepare('SELECT image_data, image_mime FROM product_images WHERE image_url = ?').get(url);
+    }
+    if (row && row.image_data) {
+      const mime = row.image_mime || 'image/jpeg';
+      const buf = Buffer.from(row.image_data, 'base64');
+      res.set('Content-Type', mime);
+      res.set('Cache-Control', 'public, max-age=31536000');
+      return res.send(buf);
+    }
+    next();
+  } catch { next(); }
+});
 app.use(passport.initialize());
 
 app.set('view engine', 'ejs');

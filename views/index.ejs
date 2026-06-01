@@ -1,40 +1,49 @@
 <%- include('partials/header', { title: 'Início' }) %>
 
 <% if (typeof featuredProducts !== 'undefined' && featuredProducts && featuredProducts.length > 0) { %>
-<section class="section">
+<section class="section featured-section">
   <div class="container">
     <div class="section-header">
       <span class="section-tag">Destaques</span>
       <h2 class="section-title">Produtos em <span class="gradient-text">Destaque</span></h2>
     </div>
-    <div class="products-grid">
-      <% featuredProducts.forEach(product => { %>
-        <div class="product-card" data-id="<%= product.id %>">
-          <div class="product-image">
-            <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
-            <span class="product-badge">Destaque</span>
-            <div class="product-overlay">
-              <a href="/product/<%= product.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>
-              <button class="btn btn-small btn-accent add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
-                <i class="fas fa-cart-plus"></i>
-              </button>
+    <div class="featured-slider">
+      <div class="featured-track" id="featuredTrack">
+        <% featuredProducts.forEach(product => { %>
+          <div class="featured-slide">
+            <div class="product-card" data-id="<%= product.id %>">
+              <div class="product-image">
+                <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+                <span class="product-badge">Destaque</span>
+                <div class="product-overlay">
+                  <a href="/product/<%= product.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>
+                  <button class="btn btn-small btn-accent add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
+                    <i class="fas fa-cart-plus"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="product-info">
+                <span class="product-category"><%= product.category %></span>
+                <h3 class="product-name"><%= product.name %></h3>
+                <div class="product-delivery">
+                  <i class="fas fa-clock"></i> <span><%= product.delivery_time %></span>
+                </div>
+                <div class="product-footer">
+                  <span class="product-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></span>
+                  <button class="btn btn-sm btn-primary add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
+                    <i class="fas fa-cart-plus"></i>
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
-          <div class="product-info">
-            <span class="product-category"><%= product.category %></span>
-            <h3 class="product-name"><%= product.name %></h3>
-            <div class="product-delivery">
-              <i class="fas fa-clock"></i> <span><%= product.delivery_time %></span>
-            </div>
-            <div class="product-footer">
-              <span class="product-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></span>
-              <button class="btn btn-sm btn-primary add-to-cart-btn" data-id="<%= product.id %>" data-name="<%= product.name %>" data-price="<%= product.price %>" data-image="<%= product.image_url %>">
-                <i class="fas fa-cart-plus"></i>
-              </button>
-            </div>
-          </div>
-        </div>
-      <% }) %>
+        <% }) %>
+      </div>
+      <% if (featuredProducts.length > 3) { %>
+      <button class="slider-btn slider-btn-prev" onclick="slideFeatured(-1)" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+      <button class="slider-btn slider-btn-next" onclick="slideFeatured(1)" aria-label="Próximo"><i class="fas fa-chevron-right"></i></button>
+      <div class="slider-dots" id="sliderDots"></div>
+      <% } %>
     </div>
   </div>
 </section>
@@ -196,3 +205,53 @@
 </section>
 
 <%- include('partials/footer') %>
+
+<style>
+.featured-section { padding-top: 40px; padding-bottom: 20px; }
+.featured-slider { position: relative; overflow: hidden; margin: 0 -8px; }
+.featured-track { display: flex; transition: transform 0.5s ease; gap: 16px; }
+.featured-slide { flex: 0 0 calc(33.333% - 11px); min-width: 250px; }
+@media (max-width: 768px) { .featured-slide { flex: 0 0 calc(50% - 8px); min-width: 200px; } }
+@media (max-width: 480px) { .featured-slide { flex: 0 0 100%; min-width: 0; } }
+.slider-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0; }
+.featured-slider:hover .slider-btn { opacity: 1; }
+.slider-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
+.slider-btn-prev { left: 4px; }
+.slider-btn-next { right: 4px; }
+.slider-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+.slider-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); cursor: pointer; transition: 0.2s; }
+.slider-dot.active { background: var(--accent); border-color: var(--accent); }
+</style>
+
+<script>
+var featuredIndex = 0;
+function slideFeatured(dir) {
+  var track = document.getElementById('featuredTrack');
+  if (!track) return;
+  var slides = track.querySelectorAll('.featured-slide');
+  var visible = window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 2 : 3;
+  var max = Math.max(0, slides.length - visible);
+  featuredIndex = Math.max(0, Math.min(max, featuredIndex + dir));
+  var offset = -featuredIndex * (100 / visible);
+  track.style.transform = 'translateX(' + offset + '%)';
+  var dots = document.querySelectorAll('.slider-dot');
+  dots.forEach(function(d, i) { d.classList.toggle('active', i === featuredIndex); });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  var track = document.getElementById('featuredTrack');
+  if (!track) return;
+  var slides = track.querySelectorAll('.featured-slide');
+  var dotsContainer = document.getElementById('sliderDots');
+  if (dotsContainer) {
+    var visible = window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 2 : 3;
+    var count = Math.max(0, slides.length - visible + 1);
+    for (var i = 0; i < count; i++) {
+      var dot = document.createElement('div');
+      dot.className = 'slider-dot' + (i === 0 ? ' active' : '');
+      dot.onclick = function() { featuredIndex = parseInt(this.dataset.index); slideFeatured(0); };
+      dot.dataset.index = i;
+      dotsContainer.appendChild(dot);
+    }
+  }
+});
+</script>
