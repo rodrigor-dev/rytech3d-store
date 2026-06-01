@@ -1,41 +1,5 @@
 <%- include('partials/header', { title: 'Início' }) %>
 
-<section class="hero">
-  <div class="hero-bg"></div>
-  <div class="hero-content">
-    <div class="hero-text">
-      <span class="hero-badge">Impressão 3D Profissional</span>
-      <h1 class="hero-title">Transforme suas ideias em <span class="gradient-text">realidade</span></h1>
-      <p class="hero-subtitle">Produtos personalizados impressos em 3D com alta qualidade e acabamento profissional. Cada peça é feita sob encomenda especialmente para você.</p>
-      <div class="hero-actions">
-        <a href="#produtos" class="btn btn-primary">
-          <i class="fas fa-cube"></i> Ver Produtos
-        </a>
-        <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=<%= encodeURIComponent(siteSettings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.') %>" target="_blank" class="btn btn-outline">
-          <i class="fab fa-whatsapp"></i> Fale Conosco
-        </a>
-      </div>
-    </div>
-    <div class="hero-visual">
-      <div class="hero-3d-model">
-        <div class="floating-cube">
-          <div class="cube-face front"></div>
-          <div class="cube-face back"></div>
-          <div class="cube-face right"></div>
-          <div class="cube-face left"></div>
-          <div class="cube-face top"></div>
-          <div class="cube-face bottom"></div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="hero-wave">
-    <svg viewBox="0 0 1440 100" preserveAspectRatio="none">
-      <path d="M0,50 C320,100 720,0 1440,50 L1440,100 L0,100 Z" fill="var(--bg-primary)"></path>
-    </svg>
-  </div>
-</section>
-
 <% if (typeof featuredProducts !== 'undefined' && featuredProducts && featuredProducts.length > 0) { %>
 <section class="section">
   <div class="container">
@@ -75,6 +39,42 @@
   </div>
 </section>
 <% } %>
+
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-content">
+    <div class="hero-text">
+      <span class="hero-badge">Impressão 3D Profissional</span>
+      <h1 class="hero-title">Transforme suas ideias em <span class="gradient-text">realidade</span></h1>
+      <p class="hero-subtitle">Produtos personalizados impressos em 3D com alta qualidade e acabamento profissional. Cada peça é feita sob encomenda especialmente para você.</p>
+      <div class="hero-actions">
+        <a href="#produtos" class="btn btn-primary">
+          <i class="fas fa-cube"></i> Ver Produtos
+        </a>
+        <a href="https://wa.me/<%= siteSettings.whatsapp_number || '5562992371986' %>?text=<%= encodeURIComponent(siteSettings.whatsapp_message || 'Olá! Gostaria de fazer um pedido na RYTECH3D.') %>" target="_blank" class="btn btn-outline">
+          <i class="fab fa-whatsapp"></i> Fale Conosco
+        </a>
+      </div>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-3d-model">
+        <div class="floating-cube">
+          <div class="cube-face front"></div>
+          <div class="cube-face back"></div>
+          <div class="cube-face right"></div>
+          <div class="cube-face left"></div>
+          <div class="cube-face top"></div>
+          <div class="cube-face bottom"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="hero-wave">
+    <svg viewBox="0 0 1440 100" preserveAspectRatio="none">
+      <path d="M0,50 C320,100 720,0 1440,50 L1440,100 L0,100 Z" fill="var(--bg-primary)"></path>
+    </svg>
+  </div>
+</section>
 
 <section class="section banner-section">
   <div class="container">
