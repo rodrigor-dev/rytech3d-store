@@ -37,6 +37,18 @@ const mixedUpload = multer({
   fileFilter: productFileFilter
 });
 
+const singleUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /jpeg|jpg|png|gif|webp/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext || mime) return cb(null, true);
+    cb(new Error('Apenas imagens (JPEG, PNG, GIF, WebP) são permitidas.'));
+  }
+});
+
 function saveProductFile(buffer, originalname) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   const ext = path.extname(originalname);
@@ -147,8 +159,18 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   }
 }));
 
+router.post('/upload-image', singleUpload.single('file'), asyncHandler(async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    const { url } = saveProductFile(req.file.buffer, req.file.originalname);
+    res.json({ url });
+  } catch (err) {
+    console.error('Erro no upload de imagem:', err);
+    res.status(500).json({ error: 'Erro ao fazer upload.' });
+  }
+}));
+
 router.post('/products/save', mixedUpload.fields([
-  { name: 'images', maxCount: 10 },
   { name: 'video_file', maxCount: 1 }
 ]), asyncHandler(async (req, res) => {
   try {
@@ -175,6 +197,13 @@ router.post('/products/save', mixedUpload.fields([
       urls.forEach(u => { if (u && u.trim()) keptUrls.push(u.trim()); });
     }
 
+    // Collect URLs from AJAX uploads (hidden inputs)
+    const uploadedUrls = [];
+    if (req.body.uploaded_images) {
+      const urls = Array.isArray(req.body.uploaded_images) ? req.body.uploaded_images : [req.body.uploaded_images];
+      urls.forEach(u => { if (u && u.trim()) uploadedUrls.push(u.trim()); });
+    }
+
     // Remove deleted existing images from disk
     const removedRaw = req.body.removed_images || '';
     const removed = removedRaw ? removedRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
@@ -185,16 +214,7 @@ router.post('/products/save', mixedUpload.fields([
       }
     });
 
-    // Process newly uploaded files -> save to disk, get base64
-    const uploadedFiles = (req.files && req.files['images']) ? req.files['images'] : [];
-    const newImageEntries = uploadedFiles.map(f => {
-      const { url } = saveProductFile(f.buffer, f.originalname);
-      const data = f.buffer.toString('base64');
-      const mime = f.mimetype;
-      return { url, data, mime };
-    });
-
-    // Build ordered list of all images (kept urls + new uploads)
+    // Build ordered list of all images (kept urls + AJAX uploads)
     const allImages = [];
     for (const url of keptUrls) {
       let data = null, mime = null;
@@ -206,8 +226,20 @@ router.post('/products/save', mixedUpload.fields([
       }
       allImages.push({ url, data, mime });
     }
-    for (const entry of newImageEntries) {
-      allImages.push(entry);
+    for (const url of uploadedUrls) {
+      const filePath = path.join(__dirname, '..', 'public', url.replace(/^\//, ''));
+      let data = null, mime = null;
+      try {
+        if (fs.existsSync(filePath)) {
+          const buffer = fs.readFileSync(filePath);
+          data = buffer.toString('base64');
+          const ext = path.extname(url).toLowerCase();
+          mime = ext === '.png' ? 'image/png' : ext === '.gif' ? 'image/gif' : ext === '.webp' ? 'image/webp' : ext === '.svg' ? 'image/svg+xml' : 'image/jpeg';
+        }
+      } catch (e) {
+        console.error('Erro ao ler imagem do disco:', e.message);
+      }
+      allImages.push({ url, data, mime });
     }
 
     let mainImageUrl = '/uploads/products/default.svg';

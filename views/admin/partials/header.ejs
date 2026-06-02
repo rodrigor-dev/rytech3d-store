@@ -11,7 +11,11 @@
 </head>
 <body class="admin-body">
   <div class="admin-layout">
-    <aside class="admin-sidebar">
+    <button class="sidebar-toggle" id="sidebarToggle" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <aside class="admin-sidebar" id="adminSidebar">
       <div class="sidebar-header">
         <a href="/admin" class="sidebar-logo">
           <span class="logo-text">RYTECH<span class="logo-highlight">3D</span></span>
@@ -19,32 +23,32 @@
       </div>
       <nav class="sidebar-nav">
         <a href="/admin" class="sidebar-link <%= currentPath === '/admin' ? 'active' : '' %>">
-          <i class="fas fa-chart-bar"></i> Dashboard
+          <i class="fas fa-chart-bar"></i> <span>Dashboard</span>
         </a>
         <a href="/admin/products" class="sidebar-link <%= currentPath.startsWith('/admin/products') ? 'active' : '' %>">
-          <i class="fas fa-cube"></i> Produtos
+          <i class="fas fa-cube"></i> <span>Produtos</span>
         </a>
         <a href="/admin/orders" class="sidebar-link <%= currentPath.startsWith('/admin/orders') ? 'active' : '' %>">
-          <i class="fas fa-shopping-cart"></i> Pedidos
+          <i class="fas fa-shopping-cart"></i> <span>Pedidos</span>
         </a>
         <a href="/admin/customers" class="sidebar-link <%= currentPath === '/admin/customers' ? 'active' : '' %>">
-          <i class="fas fa-users"></i> Clientes
+          <i class="fas fa-users"></i> <span>Clientes</span>
         </a>
         <a href="/admin/admins" class="sidebar-link <%= currentPath === '/admin/admins' ? 'active' : '' %>">
-          <i class="fas fa-user-shield"></i> Admins
+          <i class="fas fa-user-shield"></i> <span>Admins</span>
         </a>
         <a href="/admin/settings" class="sidebar-link <%= currentPath === '/admin/settings' ? 'active' : '' %>">
-          <i class="fas fa-cog"></i> Configurações
+          <i class="fas fa-cog"></i> <span>Configurações</span>
         </a>
         <a href="/admin/finances" class="sidebar-link <%= currentPath === '/admin/finances' ? 'active' : '' %>">
-          <i class="fas fa-dollar-sign"></i> Finanças
+          <i class="fas fa-dollar-sign"></i> <span>Finanças</span>
         </a>
         <hr>
         <a href="/" class="sidebar-link" target="_blank">
-          <i class="fas fa-external-link-alt"></i> Ver Site
+          <i class="fas fa-external-link-alt"></i> <span>Ver Site</span>
         </a>
         <a href="/admin/logout" class="sidebar-link">
-          <i class="fas fa-sign-out-alt"></i> Sair
+          <i class="fas fa-sign-out-alt"></i> <span>Sair</span>
         </a>
         <div class="sidebar-user">
           <div class="user-avatar"><%= (adminUser?.username || 'A').charAt(0).toUpperCase() %></div>

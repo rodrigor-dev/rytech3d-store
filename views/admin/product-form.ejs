@@ -58,9 +58,10 @@
           <div class="image-upload-area">
             <label class="btn btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
               <i class="fas fa-upload"></i> Selecionar Imagens
-              <input type="file" id="images" name="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none" onchange="handleFiles(this)">
+              <input type="file" id="images" accept="image/jpeg,image/png,image/gif,image/webp" multiple style="display:none" onchange="handleFiles(this)">
             </label>
             <span id="imageCount" class="form-help" style="margin-left:8px"></span>
+            <div id="uploadProgress" style="margin-top:8px;font-size:0.85rem;color:var(--text-muted)"></div>
           </div>
           <small class="form-help">Formatos: JPEG, PNG, GIF, WebP. A primeira imagem será a principal. Clique no "x" para remover.</small>
           <div id="imagePreviewContainer" class="image-preview-grid" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:12px">
@@ -210,26 +211,57 @@ function handleFiles(input) {
   const maxTotal = 6;
   const maxNew = maxTotal - existing;
   const toAdd = files.slice(0, maxNew);
+  const progress = document.getElementById('uploadProgress');
+  let uploaded = 0;
+
   toAdd.forEach((file, idx) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // Show preview immediately using FileReader
     const reader = new FileReader();
     reader.onload = function(e) {
       const div = document.createElement('div');
       div.className = 'image-preview-item';
       div.style.cssText = 'position:relative;width:120px;height:120px;border-radius:8px;overflow:hidden;border:2px solid var(--border);background:var(--bg-secondary)';
-      if (existing === 0 && idx === 0) {
-        div.style.borderColor = 'var(--accent)';
-        div.innerHTML += '<span style="position:absolute;top:4px;left:4px;background:var(--accent);color:#000;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px">Principal</span>';
-      }
+      div.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.3);z-index:1"><i class="fas fa-spinner fa-spin" style="font-size:1.5rem;color:var(--accent)"></i></div>';
       div.innerHTML += '<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
-      div.innerHTML += '<button type="button" onclick="this.closest(\'.image-preview-item\').remove()" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>';
       container.appendChild(div);
-      updateImageCount();
+
+      // Upload file via AJAX
+      fetch('/admin/upload-image', { method: 'POST', body: formData })
+        .then(r => r.json())
+        .then(data => {
+          if (data.url) {
+            div.innerHTML = '';
+            if (existing === 0 && idx === 0) {
+              div.style.borderColor = 'var(--accent)';
+              div.innerHTML += '<span style="position:absolute;top:4px;left:4px;background:var(--accent);color:#000;font-size:0.65rem;font-weight:700;padding:2px 6px;border-radius:4px">Principal</span>';
+            }
+            div.innerHTML += '<img src="'+e.target.result+'" style="width:100%;height:100%;object-fit:cover">';
+            div.innerHTML += '<input type="hidden" name="uploaded_images" value="'+data.url+'">';
+            div.innerHTML += '<button type="button" onclick="this.closest(\'.image-preview-item\').remove()" style="position:absolute;top:4px;right:4px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;cursor:pointer;font-size:0.8rem;display:flex;align-items:center;justify-content:center"><i class="fas fa-times"></i></button>';
+            div.dataset.uploaded = '1';
+            uploaded++;
+            progress.textContent = uploaded + '/' + toAdd.length + ' enviadas';
+          } else {
+            div.remove();
+            alert('Erro ao enviar ' + file.name + ': ' + (data.error || 'Erro desconhecido'));
+          }
+          updateImageCount();
+        })
+        .catch(function() {
+          div.remove();
+          alert('Erro de conexão ao enviar ' + file.name);
+          updateImageCount();
+        });
     };
     reader.readAsDataURL(file);
   });
   if (files.length > maxNew) {
     alert('Máximo de ' + maxTotal + ' imagens no total. ' + files.length + ' selecionadas, mas só cabem ' + maxNew + ' novas.');
   }
+  if (toAdd.length > 0) progress.textContent = 'Enviando 0/' + toAdd.length + '...';
 }
 function removeExisting(btn, url) {
   if (!confirm('Remover esta imagem?')) return;
