@@ -1,27 +1,12 @@
 <%- include('partials/header', { title: 'Finanças' }) %>
 
 <style>
-.finance-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
-.finance-card { background: var(--bg-secondary); border-radius: var(--radius); padding: 20px; border: 1px solid var(--border); }
-.finance-card .label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
-.finance-card .value { font-size: 1.8rem; font-weight: 700; margin-top: 4px; }
-.finance-card .value.positive { color: var(--accent); }
-.finance-card .value.negative { color: var(--red); }
-.finance-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
-.finance-nav select, .finance-nav input { padding: 8px 12px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); font-size: 0.9rem; }
-.finance-table { width: 100%; border-collapse: collapse; }
-.finance-table th { text-align: left; padding: 10px 12px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); border-bottom: 1px solid var(--border); }
-.finance-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-.tag { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
-.tag-revenue { background: rgba(0,212,170,0.15); color: var(--accent); }
-.tag-expense { background: rgba(239,68,68,0.15); color: var(--red); }
-.tag-cancelled { background: rgba(255,159,28,0.15); color: #ff9f1c; }
 .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 1000; align-items: center; justify-content: center; }
 .modal-overlay.active { display: flex; }
 .modal-box { background: var(--bg-primary); border-radius: var(--radius); padding: 28px; width: 90%; max-width: 480px; border: 1px solid var(--border); }
 .modal-box h3 { margin: 0 0 16px; }
 .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
-.btn-icon { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); cursor: pointer; transition: 0.2s; }
+.btn-icon { width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text-primary); cursor: pointer; transition: 0.2s; }
 .btn-icon:hover { background: var(--accent); color: #000; border-color: var(--accent); }
 </style>
 

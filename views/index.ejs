@@ -208,50 +208,153 @@
 
 <style>
 .featured-section { padding-top: 40px; padding-bottom: 20px; }
-.featured-slider { position: relative; overflow: hidden; margin: 0 -8px; }
-.featured-track { display: flex; transition: transform 0.5s ease; gap: 16px; }
+.featured-slider { position: relative; overflow: hidden; margin: 0 -8px; user-select: none; -webkit-user-select: none; }
+.featured-track { display: flex; transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); gap: 16px; cursor: grab; }
+.featured-track.dragging { transition: none; cursor: grabbing; }
 .featured-slide { flex: 0 0 calc(33.333% - 11px); min-width: 250px; }
 @media (max-width: 768px) { .featured-slide { flex: 0 0 calc(50% - 8px); min-width: 200px; } }
 @media (max-width: 480px) { .featured-slide { flex: 0 0 100%; min-width: 0; } }
-.slider-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0; }
-.featured-slider:hover .slider-btn { opacity: 1; }
+.slider-btn { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-card); color: var(--text); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; opacity: 0; box-shadow: var(--shadow); }
+.featured-slider:hover .slider-btn, .slider-btn.visible { opacity: 1; }
 .slider-btn:hover { background: var(--accent); color: #000; border-color: var(--accent); }
 .slider-btn-prev { left: 4px; }
 .slider-btn-next { right: 4px; }
-.slider-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+@media (max-width: 768px) { .slider-btn { width: 34px; height: 34px; font-size: 0.85rem; opacity: 1; background: var(--bg-card); } }
+.slider-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
 .slider-dot { width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--border); background: var(--bg-secondary); cursor: pointer; transition: 0.2s; }
 .slider-dot.active { background: var(--accent); border-color: var(--accent); }
 </style>
 
 <script>
-var featuredIndex = 0;
-function slideFeatured(dir) {
-  var track = document.getElementById('featuredTrack');
-  if (!track) return;
-  var slides = track.querySelectorAll('.featured-slide');
-  var visible = window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 2 : 3;
-  var max = Math.max(0, slides.length - visible);
-  featuredIndex = Math.max(0, Math.min(max, featuredIndex + dir));
-  var offset = -featuredIndex * (100 / visible);
-  track.style.transform = 'translateX(' + offset + '%)';
-  var dots = document.querySelectorAll('.slider-dot');
-  dots.forEach(function(d, i) { d.classList.toggle('active', i === featuredIndex); });
-}
-document.addEventListener('DOMContentLoaded', function() {
-  var track = document.getElementById('featuredTrack');
-  if (!track) return;
-  var slides = track.querySelectorAll('.featured-slide');
-  var dotsContainer = document.getElementById('sliderDots');
-  if (dotsContainer) {
-    var visible = window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 2 : 3;
-    var count = Math.max(0, slides.length - visible + 1);
-    for (var i = 0; i < count; i++) {
-      var dot = document.createElement('div');
-      dot.className = 'slider-dot' + (i === 0 ? ' active' : '');
-      dot.onclick = function() { featuredIndex = parseInt(this.dataset.index); slideFeatured(0); };
-      dot.dataset.index = i;
-      dotsContainer.appendChild(dot);
-    }
+(function() {
+  var featuredIndex = 0;
+  var track = null;
+  var slides = null;
+  var visible = 3;
+
+  function getVisible() {
+    return window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 2 : 3;
   }
-});
+
+  function updateVisible() {
+    visible = getVisible();
+  }
+
+  function slideFeatured(dir) {
+    if (!track) track = document.getElementById('featuredTrack');
+    if (!track) return;
+    if (!slides) slides = track.querySelectorAll('.featured-slide');
+    updateVisible();
+    var max = Math.max(0, slides.length - visible);
+    featuredIndex = Math.max(0, Math.min(max, featuredIndex + dir));
+    var slideWidth = 100 / visible;
+    track.style.transform = 'translateX(' + (-featuredIndex * slideWidth) + '%)';
+    var dots = document.querySelectorAll('.slider-dot');
+    dots.forEach(function(d, i) { d.classList.toggle('active', i === featuredIndex); });
+  }
+
+  // Drag / Swipe support
+  function initDrag() {
+    if (!track) track = document.getElementById('featuredTrack');
+    if (!track) return;
+    if (!slides) slides = track.querySelectorAll('.featured-slide');
+    updateVisible();
+
+    var startX = 0;
+    var currentX = 0;
+    var isDragging = false;
+    var startOffset = 0;
+
+    function getSlideWidth() {
+      if (slides.length === 0) return track.offsetWidth;
+      return slides[0].offsetWidth + 16;
+    }
+
+    function onStart(clientX) {
+      if (!track || slides.length === 0) return;
+      updateVisible();
+      var max = Math.max(0, slides.length - visible);
+      featuredIndex = Math.max(0, Math.min(max, featuredIndex));
+      startX = clientX;
+      currentX = clientX;
+      isDragging = true;
+      startOffset = featuredIndex * getSlideWidth();
+      track.classList.add('dragging');
+      track.style.transition = 'none';
+    }
+
+    function onMove(clientX) {
+      if (!isDragging) return;
+      currentX = clientX;
+      var diff = startX - currentX;
+      var newOffset = startOffset + diff;
+      var maxOffset = Math.max(0, (slides.length - visible) * getSlideWidth());
+      newOffset = Math.max(0, Math.min(maxOffset, newOffset));
+      track.style.transform = 'translateX(' + (-newOffset) + 'px)';
+    }
+
+    function onEnd() {
+      if (!isDragging) return;
+      isDragging = false;
+      track.classList.remove('dragging');
+      track.style.transition = '';
+      var diff = startX - currentX;
+      var threshold = getSlideWidth() * 0.25;
+      if (Math.abs(diff) > threshold) {
+        if (diff > 0) slideFeatured(1);
+        else slideFeatured(-1);
+      } else {
+        slideFeatured(0);
+      }
+    }
+
+    // Touch events
+    track.addEventListener('touchstart', function(e) { onStart(e.touches[0].clientX); }, { passive: true });
+    track.addEventListener('touchmove', function(e) { onMove(e.touches[0].clientX); }, { passive: true });
+    track.addEventListener('touchend', onEnd, { passive: true });
+
+    // Mouse events
+    track.addEventListener('mousedown', function(e) {
+      onStart(e.clientX);
+      e.preventDefault();
+    });
+    document.addEventListener('mousemove', function(e) {
+      if (!isDragging) return;
+      onMove(e.clientX);
+      e.preventDefault();
+    });
+    document.addEventListener('mouseup', function() {
+      if (!isDragging) return;
+      onEnd();
+    });
+
+    // Handle resize
+    window.addEventListener('resize', function() {
+      updateVisible();
+      slideFeatured(0);
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    track = document.getElementById('featuredTrack');
+    if (!track) return;
+    slides = track.querySelectorAll('.featured-slide');
+    updateVisible();
+
+    // Dots
+    var dotsContainer = document.getElementById('sliderDots');
+    if (dotsContainer) {
+      var count = Math.max(0, slides.length - visible + 1);
+      for (var i = 0; i < count; i++) {
+        var dot = document.createElement('div');
+        dot.className = 'slider-dot' + (i === 0 ? ' active' : '');
+        dot.onclick = function() { featuredIndex = parseInt(this.dataset.index); slideFeatured(0); };
+        dot.dataset.index = i;
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    initDrag();
+  });
+})();
 </script>
