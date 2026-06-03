@@ -40,8 +40,8 @@
         <% }) %>
       </div>
       <% if (featuredProducts.length > 3) { %>
-      <button class="slider-btn slider-btn-prev" onclick="slideFeatured(-1)" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
-      <button class="slider-btn slider-btn-next" onclick="slideFeatured(1)" aria-label="Próximo"><i class="fas fa-chevron-right"></i></button>
+      <button class="slider-btn slider-btn-prev" aria-label="Anterior"><i class="fas fa-chevron-left"></i></button>
+      <button class="slider-btn slider-btn-next" aria-label="Próximo"><i class="fas fa-chevron-right"></i></button>
       <div class="slider-dots" id="sliderDots"></div>
       <% } %>
     </div>
@@ -243,52 +243,64 @@
 <script>
 (function() {
   var featuredIndex = 0;
-  var track = null;
-  var slides = null;
   var visible = 3;
 
   function getVisible() {
     return window.innerWidth <= 480 ? 1 : window.innerWidth <= 768 ? 2 : 3;
   }
 
-  function updateVisible() {
-    visible = getVisible();
-  }
-
   function slideFeatured(dir) {
-    if (!track) track = document.getElementById('featuredTrack');
+    var track = document.getElementById('featuredTrack');
     if (!track) return;
-    if (!slides) slides = track.querySelectorAll('.featured-slide');
-    updateVisible();
+    var slides = track.querySelectorAll('.featured-slide');
+    if (!slides.length) return;
+    visible = getVisible();
     var max = Math.max(0, slides.length - visible);
     featuredIndex = Math.max(0, Math.min(max, featuredIndex + dir));
-    var slidePct = 100 / visible;
-    track.style.transform = 'translateX(' + (-featuredIndex * slidePct) + '%)';
+    track.style.transform = 'translateX(' + (-featuredIndex * (100 / visible)) + '%)';
     var dots = document.querySelectorAll('.slider-dot');
     dots.forEach(function(d, i) { d.classList.toggle('active', i === featuredIndex); });
   }
 
   window.slideFeatured = slideFeatured;
 
-  function initDrag() {
-    if (!track) track = document.getElementById('featuredTrack');
+  document.addEventListener('DOMContentLoaded', function() {
+    var track = document.getElementById('featuredTrack');
     if (!track) return;
-    if (!slides) slides = track.querySelectorAll('.featured-slide');
-    updateVisible();
+    var slides = track.querySelectorAll('.featured-slide');
+    if (!slides.length) return;
+    visible = getVisible();
 
-    var startX = 0;
-    var currentX = 0;
-    var isDragging = false;
-    var startPct = 0;
-    var trackWidth = 0;
-
-    function getSlidePct() {
-      return 100 / visible;
+    var slider = document.querySelector('.featured-slider');
+    if (slider) {
+      slider.addEventListener('click', function(e) {
+        var btn = e.target.closest('.slider-btn-prev');
+        if (btn) { slideFeatured(-1); return; }
+        btn = e.target.closest('.slider-btn-next');
+        if (btn) { slideFeatured(1); return; }
+      });
     }
 
+    var dotsContainer = document.getElementById('sliderDots');
+    if (dotsContainer) {
+      var count = Math.max(0, slides.length - visible + 1);
+      for (var i = 0; i < count; i++) {
+        var dot = document.createElement('div');
+        dot.className = 'slider-dot' + (i === 0 ? ' active' : '');
+        dot.addEventListener('click', (function(idx) {
+          return function() { featuredIndex = idx; slideFeatured(0); };
+        })(i));
+        dotsContainer.appendChild(dot);
+      }
+    }
+
+    var startX = 0, currentX = 0, isDragging = false, startPct = 0, trackWidth = 0;
+
+    function getSlidePct() { return 100 / visible; }
+
     function onStart(clientX) {
-      if (!track || slides.length === 0) return;
-      updateVisible();
+      if (!slides.length) return;
+      visible = getVisible();
       trackWidth = track.offsetWidth;
       var max = Math.max(0, slides.length - visible);
       featuredIndex = Math.max(0, Math.min(max, featuredIndex));
@@ -301,13 +313,10 @@
     }
 
     function onMove(clientX) {
-      if (!isDragging || trackWidth === 0) return;
+      if (!isDragging || !trackWidth) return;
       currentX = clientX;
-      var diffPx = startX - currentX;
-      var diffPct = (diffPx / trackWidth) * 100;
-      var newPct = startPct + diffPct;
-      var maxPct = Math.max(0, (slides.length - visible) * getSlidePct());
-      newPct = Math.max(0, Math.min(maxPct, newPct));
+      var diffPct = ((startX - currentX) / trackWidth) * 100;
+      var newPct = Math.max(0, Math.min((slides.length - visible) * getSlidePct(), startPct + diffPct));
       track.style.transform = 'translateX(' + (-newPct) + '%)';
     }
 
@@ -316,61 +325,23 @@
       isDragging = false;
       track.classList.remove('dragging');
       track.style.transition = '';
-      var diffPx = startX - currentX;
-      var slidePct = getSlidePct();
-      var threshold = slidePct * 0.25;
-      var diffPct = (diffPx / trackWidth) * 100;
-      if (Math.abs(diffPct) > threshold) {
-        if (diffPct > 0) slideFeatured(1);
-        else slideFeatured(-1);
-      } else {
-        slideFeatured(0);
-      }
+      var diffPct = ((startX - currentX) / trackWidth) * 100;
+      if (Math.abs(diffPct) > getSlidePct() * 0.25) slideFeatured(diffPct > 0 ? 1 : -1);
+      else slideFeatured(0);
     }
 
     track.addEventListener('touchstart', function(e) { onStart(e.touches[0].clientX); }, { passive: true });
     track.addEventListener('touchmove', function(e) { onMove(e.touches[0].clientX); }, { passive: true });
     track.addEventListener('touchend', onEnd, { passive: true });
 
-    track.addEventListener('mousedown', function(e) {
-      onStart(e.clientX);
-      e.preventDefault();
-    });
-    document.addEventListener('mousemove', function(e) {
-      if (!isDragging) return;
-      onMove(e.clientX);
-      e.preventDefault();
-    });
-    document.addEventListener('mouseup', function() {
-      if (!isDragging) return;
-      onEnd();
-    });
+    track.addEventListener('mousedown', function(e) { onStart(e.clientX); e.preventDefault(); });
+    document.addEventListener('mousemove', function(e) { if (isDragging) { onMove(e.clientX); e.preventDefault(); } });
+    document.addEventListener('mouseup', function() { if (isDragging) onEnd(); });
 
     window.addEventListener('resize', function() {
-      updateVisible();
+      visible = getVisible();
       slideFeatured(0);
     });
-  }
-
-  document.addEventListener('DOMContentLoaded', function() {
-    track = document.getElementById('featuredTrack');
-    if (!track) return;
-    slides = track.querySelectorAll('.featured-slide');
-    updateVisible();
-
-    var dotsContainer = document.getElementById('sliderDots');
-    if (dotsContainer) {
-      var count = Math.max(0, slides.length - visible + 1);
-      for (var i = 0; i < count; i++) {
-        var dot = document.createElement('div');
-        dot.className = 'slider-dot' + (i === 0 ? ' active' : '');
-        dot.onclick = function() { featuredIndex = parseInt(this.dataset.index); slideFeatured(0); };
-        dot.dataset.index = i;
-        dotsContainer.appendChild(dot);
-      }
-    }
-
-    initDrag();
   });
 })();
 </script>

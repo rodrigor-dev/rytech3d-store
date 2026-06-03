@@ -19,31 +19,31 @@
           <table class="admin-table">
             <thead>
               <tr>
-                <th>Imagem</th>
-                <th>Nome</th>
-                <th>Categoria</th>
-                <th>Preço</th>
-                <th>Prazo</th>
-                <th>Destaque</th>
-                <th>Ativo</th>
-                <th>Ações</th>
+                <th class="col-img">Imagem</th>
+                <th class="col-name">Nome</th>
+                <th class="col-cat">Categoria</th>
+                <th class="col-price">Preço</th>
+                <th class="col-delivery">Prazo</th>
+                <th class="col-featured">Destaque</th>
+                <th class="col-active">Ativo</th>
+                <th class="col-actions">Ações</th>
               </tr>
             </thead>
             <tbody>
               <% products.forEach(product => { %>
                 <tr class="product-row" data-href="/admin/products/edit/<%= product.id %>">
-                  <td><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
-                  <td><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
-                  <td><%= product.category %></td>
-                  <td>R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
-                  <td><%= product.delivery_time %></td>
-                  <td><%= product.featured ? '⭐' : '-' %></td>
-                  <td>
+                  <td class="col-img"><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
+                  <td class="col-name"><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
+                  <td class="col-cat"><%= product.category %></td>
+                  <td class="col-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
+                  <td class="col-delivery"><%= product.delivery_time %></td>
+                  <td class="col-featured"><%= product.featured ? '⭐' : '-' %></td>
+                  <td class="col-active">
                     <button class="toggle-active-btn" data-id="<%= product.id %>" data-active="<%= product.active %>">
                       <%= product.active ? '✅' : '❌' %>
                     </button>
                   </td>
-                  <td class="actions-cell">
+                  <td class="col-actions actions-cell">
                     <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i></a>
                     <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
                       <button type="submit" class="btn btn-small btn-danger"><i class="fas fa-trash"></i></button>
@@ -89,6 +89,13 @@ document.querySelectorAll('.toggle-active-btn').forEach(btn => {
 .product-row:hover { background: rgba(0,212,170,0.03); }
 .product-name-link { color: var(--accent); font-weight: 500; text-decoration: none; }
 .product-name-link:hover { text-decoration: underline; }
+
+@media (max-width: 768px) {
+  .col-img, .col-delivery, .col-featured { display: none; }
+}
+@media (max-width: 480px) {
+  .col-cat { display: none; }
+}
 </style>
 
 <%- include('partials/footer') %>
