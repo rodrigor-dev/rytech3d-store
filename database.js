@@ -415,8 +415,18 @@ async function initDatabase() {
       await prepare('UPDATE admins SET email = ?, password = ? WHERE username = ?').run(email, h, username);
     }
   };
-  await ensureAdmin('admin', '', 'Rytech3d@2026');
-  await ensureAdmin('rodrigo-admin', 'rodrigo@admin.com', 'rytech2026');
+  const admin1User = process.env.ADMIN1_USER || process.env.ADMIN_USERNAME || 'admin';
+  const admin1Pass = process.env.ADMIN1_PASSWORD || process.env.ADMIN_PASSWORD;
+  const admin1Email = process.env.ADMIN1_EMAIL || '';
+  if (admin1Pass) {
+    await ensureAdmin(admin1User, admin1Email, admin1Pass);
+  }
+  const admin2User = process.env.ADMIN2_USER || 'rodrigo-admin';
+  const admin2Pass = process.env.ADMIN2_PASSWORD;
+  const admin2Email = process.env.ADMIN2_EMAIL || 'rodrigo@admin.com';
+  if (admin2Pass) {
+    await ensureAdmin(admin2User, admin2Email, admin2Pass);
+  }
 
   // Seed products
   const productCount = await prepare('SELECT COUNT(*) as count FROM products').get();

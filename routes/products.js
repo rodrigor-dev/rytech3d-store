@@ -4,6 +4,13 @@ const { prepare } = require('../database');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+router.param('id', (req, res, next, val) => {
+  const num = parseInt(val, 10);
+  if (isNaN(num) || num < 1) return res.status(400).send('ID inválido');
+  req.params.id = num;
+  next();
+});
+
 router.get('/', asyncHandler(async (req, res) => {
     const { category, search } = req.query;
     let products;

@@ -1963,18 +1963,20 @@ img { max-width: 100%; height: auto; }
   .admin-table th, .admin-table td { padding: 8px 8px; font-size: 0.75rem; }
   .admin-table th { white-space: nowrap; }
   .admin-card-body { padding: 10px; }
+  .admin-card-body .btn.btn-outline { width: 100%; justify-content: center; min-height: 44px; }
   .admin-card-header { padding: 10px 12px; flex-wrap: wrap; gap: 6px; }
   .admin-card-header h2 { font-size: 0.9rem; }
   .admin-content h1 { font-size: 1.2rem; margin-bottom: 16px; }
   .form-actions { flex-direction: column; }
   .form-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
   .status-form .form-row { flex-direction: column; align-items: stretch; }
-  .status-form select { width: 100%; }
-  .status-form button { width: 100%; }
+  .status-form select { width: 100%; min-height: 44px; }
+  .status-form button { width: 100%; min-height: 44px; }
   .form-group label { font-size: 0.85rem; }
   .form-control { font-size: 0.9rem; min-height: 44px; }
 
   .order-detail-grid { gap: 12px; }
+  .order-detail-grid .detail-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
   .detail-row { font-size: 0.8rem; padding: 6px 0; flex-direction: column; gap: 2px; }
   .detail-label { font-size: 0.75rem; }
 
@@ -2006,9 +2008,12 @@ img { max-width: 100%; height: auto; }
   .stat-card { padding: 10px; gap: 8px; flex-direction: column; align-items: flex-start; }
   .stat-icon { width: 32px; height: 32px; font-size: 0.8rem; }
   .stat-value { font-size: 1rem; }
-  .admin-table th, .admin-table td { padding: 6px 6px; font-size: 0.7rem; }
-  .admin-filters .filter-btn { font-size: 0.7rem; padding: 5px 8px; }
+  .admin-table th, .admin-table td { padding: 8px 6px; font-size: 0.7rem; }
+  .admin-table .btn-small { min-height: 36px; min-width: 36px; display: inline-flex; align-items: center; justify-content: center; }
+  .admin-table .toggle-active-btn { min-height: 36px; min-width: 36px; }
+  .admin-filters .filter-btn { font-size: 0.7rem; padding: 5px 8px; min-height: 36px; }
   .admin-card-body { padding: 8px; }
+  .admin-card-body .btn-outline { min-height: 40px; }
   .admin-card-header { padding: 8px 10px; }
   .admin-content h1 { font-size: 1.1rem; }
   .image-preview-item { width: 70px; height: 70px; }

@@ -1,16 +1,17 @@
 const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET;
 
 function generateToken(user) {
   return jwt.sign(
     { id: user.id, email: user.email, name: user.full_name },
-    process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure',
+    JWT_SECRET,
     { expiresIn: '7d' }
   );
 }
 
 function verifyToken(token) {
   try {
-    return jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+    return jwt.verify(token, JWT_SECRET);
   } catch {
     return null;
   }
@@ -45,7 +46,7 @@ function adminAuth(req, res, next) {
     return res.redirect('/admin/login');
   }
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+    const decoded = jwt.verify(token, JWT_SECRET);
     if (decoded.role !== 'admin') {
       throw new Error('Not admin');
     }
@@ -64,7 +65,7 @@ function adminAuth(req, res, next) {
 function generateAdminToken(admin) {
   return jwt.sign(
     { id: admin.id, username: admin.username, role: 'admin' },
-    process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure',
+    JWT_SECRET,
     { expiresIn: '24h' }
   );
 }

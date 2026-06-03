@@ -5,8 +5,22 @@ const jwt = require('jsonwebtoken');
 const passport = require('../middleware/passport');
 const { prepare } = require('../database');
 const { generateToken, generateAdminToken } = require('../middleware/auth');
+const rateLimit = require('express-rate-limit');
+
+const JWT_SECRET = process.env.JWT_SECRET;
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { error: 'Muitas tentativas. Tente novamente em 15 minutos.' },
+  skipSuccessfulRequests: true
+});
+
+function isSecure(req) {
+  return req.secure || req.headers['x-forwarded-proto'] === 'https';
+}
 
 function validateCPF(cpf) {
   cpf = cpf.replace(/\D/g, '');
@@ -29,13 +43,13 @@ router.get('/login', asyncHandler(async (req, res) => {
   const adminToken = req.cookies?.admin_token;
   if (adminToken) {
     try {
-      const decoded = jwt.verify(adminToken, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+      const decoded = jwt.verify(adminToken, JWT_SECRET);
       if (decoded.role === 'admin') return res.redirect('/admin');
     } catch {}
   }
   if (token) {
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+      const decoded = jwt.verify(token, JWT_SECRET);
       return res.redirect('/checkout');
     } catch {}
   }
@@ -46,7 +60,7 @@ router.get('/register', asyncHandler(async (req, res) => {
   res.render('register', { error: null, formData: {} });
 }));
 
-router.post('/register', asyncHandler(async (req, res) => {
+router.post('/register', authLimiter, asyncHandler(async (req, res) => {
   try {
     const { full_name, cpf, email, password, confirm_password, phone, street, number, complement, neighborhood, city, state, zip_code } = req.body;
 
@@ -87,7 +101,8 @@ router.post('/register', asyncHandler(async (req, res) => {
 
     const user = await prepare('SELECT * FROM users WHERE email = ?').get(email);
     const token = generateToken(user);
-    res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    const cookieOpts = { httpOnly: true, secure: isSecure(req), sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 };
+    res.cookie('token', token, cookieOpts);
     res.redirect('/checkout');
   } catch (err) {
     console.error('Erro no registro:', err);
@@ -95,7 +110,7 @@ router.post('/register', asyncHandler(async (req, res) => {
   }
 }));
 
-router.post('/login', asyncHandler(async (req, res) => {
+router.post('/login', authLimiter, asyncHandler(async (req, res) => {
   try {
     const { email, password, redirect } = req.body;
     if (!email || !password) {
@@ -106,18 +121,19 @@ router.post('/login', asyncHandler(async (req, res) => {
     const admin = await prepare('SELECT * FROM admins WHERE email = ? OR username = ?').get(email, email);
     if (admin && bcrypt.compareSync(password, admin.password)) {
       const token = generateAdminToken(admin);
-      res.cookie('admin_token', token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+      const cookieOpts = { httpOnly: true, secure: isSecure(req), sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 };
+      res.cookie('admin_token', token, cookieOpts);
       return res.redirect('/admin');
     }
 
-    // Then check regular user
     const user = await prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user || !bcrypt.compareSync(password, user.password)) {
       return res.render('login', { error: 'Email ou senha incorretos.', redirect: redirect || '/checkout' });
     }
 
     const token = generateToken(user);
-    res.cookie('token', token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 });
+    const cookieOpts = { httpOnly: true, secure: isSecure(req), sameSite: 'lax', maxAge: 7 * 24 * 60 * 60 * 1000 };
+    res.cookie('token', token, cookieOpts);
     res.redirect(redirect || '/checkout');
   } catch (err) {
     console.error('Erro no login:', err);
@@ -130,11 +146,11 @@ router.get('/logout', asyncHandler(async (req, res) => {
   res.redirect('/');
 }));
 
-router.get('/profile', asyncHandler(async (req, res) => {
+router.get('/profile', authLimiter, asyncHandler(async (req, res) => {
   const token = req.cookies?.token;
   if (!token) return res.redirect('/login');
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+    const decoded = jwt.verify(token, JWT_SECRET);
     const user = await prepare('SELECT id, full_name, cpf, email, phone, street, number, complement, neighborhood, city, state, zip_code FROM users WHERE id = ?').get(decoded.id);
     if (!user) return res.redirect('/login');
     res.render('profile', { user, error: null, success: null });
@@ -148,7 +164,7 @@ router.post('/profile/update', asyncHandler(async (req, res) => {
   try {
     const token = req.cookies?.token;
     if (!token) return res.status(401).json({ error: 'Não autenticado' });
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+    const decoded = jwt.verify(token, JWT_SECRET);
     const { full_name, phone, street, number, complement, neighborhood, city, state, zip_code } = req.body;
 
     await prepare(`UPDATE users SET full_name=?, phone=?, street=?, number=?, complement=?, neighborhood=?, city=?, state=?, zip_code=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)

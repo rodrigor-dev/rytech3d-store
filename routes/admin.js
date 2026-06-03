@@ -11,6 +11,15 @@ const { getSettings } = require('../database');
 
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
+router.param('id', (req, res, next, val) => {
+  const num = parseInt(val, 10);
+  if (isNaN(num) || num < 1) {
+    return res.status(400).json({ error: 'ID inválido' });
+  }
+  req.params.id = num;
+  next();
+});
+
 const uploadsDir = path.join(__dirname, '..', 'public', 'uploads', 'products');
 
 const productFileFilter = (req, file, cb) => {

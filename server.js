@@ -1,10 +1,16 @@
 require('dotenv').config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is required');
+  process.exit(1);
+}
+
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
 const cookieParser = require('cookie-parser');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 const cors = require('cors');
 const jwt = require('jsonwebtoken');
 const passport = require('./middleware/passport');
@@ -13,9 +19,23 @@ const { initDatabase, prepare } = require('./database');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+app.set('trust proxy', 1);
+
 app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
+      imgSrc: ["'self'", "data:", "blob:"],
+      connectSrc: ["'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: []
+    }
+  }
 }));
 
 app.use(cors({
@@ -23,12 +43,7 @@ app.use(cors({
   credentials: true
 }));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: { error: 'Muitas requisições. Tente novamente em 15 minutos.' }
-});
-app.use('/api/', limiter);
+
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
@@ -70,7 +85,7 @@ app.use(async (req, res, next) => {
     const token = req.cookies?.token;
     if (token) {
       try {
-        res.locals.currentUser = jwt.verify(token, process.env.JWT_SECRET || 'rytech3d_jwt_secret_key_2026_secure');
+        res.locals.currentUser = jwt.verify(token, JWT_SECRET);
       } catch {}
     }
     next();
@@ -101,12 +116,12 @@ app.use((err, req, res, next) => {
   console.error('❌ ERRO NÃO TRATADO:', err);
   console.error('Stack:', err.stack);
   if (err.name === 'MulterError') {
-    return res.status(400).json({ error: 'Erro no upload: ' + err.message });
+    return res.status(400).json({ error: 'Erro no upload. Verifique o tamanho e tipo do arquivo.' });
   }
   if (req.xhr || req.headers.accept?.includes('json')) {
     return res.status(500).json({ error: 'Erro interno do servidor' });
   }
-  res.status(500).send('Erro interno do servidor: ' + err.message);
+  res.status(500).send('Erro interno do servidor');
 });
 
 initDatabase().then(() => {
@@ -114,7 +129,7 @@ initDatabase().then(() => {
     console.log(`\n🚀 RYTECH3D Store rodando em http://localhost:${PORT}`);
     console.log(`📱 Site do cliente: http://localhost:${PORT}`);
     console.log(`🔧 Admin: http://localhost:${PORT}/admin/login`);
-    console.log(`📧 Admin padrão: admin / Rytech3d@2026\n`);
+
   });
 }).catch(err => {
   console.error('Erro ao iniciar banco de dados:', err);
