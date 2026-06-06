@@ -1,9 +1,10 @@
 require('dotenv').config();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+let JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET environment variable is required');
-  process.exit(1);
+  console.error('⚠️  AVISO: JWT_SECRET não definido! Usando fallback inseguro. Defina JWT_SECRET no .env ou nas variáveis de ambiente do Render.');
+  JWT_SECRET = 'fallback_' + Math.random().toString(36).slice(2);
+  process.env.JWT_SECRET = JWT_SECRET;
 }
 
 const express = require('express');
@@ -30,10 +31,10 @@ app.use(helmet({
       styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://cdnjs.cloudflare.com"],
       fontSrc: ["'self'", "https://fonts.gstatic.com", "https://cdnjs.cloudflare.com"],
       imgSrc: ["'self'", "data:", "blob:"],
+      formAction: ["'self'"],
       connectSrc: ["'self'"],
       frameSrc: ["'none'"],
-      objectSrc: ["'none'"],
-      upgradeInsecureRequests: []
+      objectSrc: ["'none'"]
     }
   }
 }));
