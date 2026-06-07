@@ -154,7 +154,7 @@ router.get('/', asyncHandler(async (req, res) => {
 
 router.get('/products', asyncHandler(async (req, res) => {
   try {
-    const products = await prepare('SELECT * FROM products ORDER BY created_at DESC').all();
+    const products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured, active FROM products ORDER BY created_at DESC').all();
     res.render('admin/products', { products });
   } catch (err) {
     console.error('Erro ao listar produtos:', err);
@@ -168,9 +168,9 @@ router.get('/products/new', asyncHandler(async (req, res) => {
 
 router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   try {
-    const product = await prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    const product = await prepare('SELECT id, name, description, price, delivery_time, category, image_url, video_url, featured, active FROM products WHERE id = ?').get(req.params.id);
     if (!product) return res.status(404).send('Produto não encontrado');
-    const extraImages = await prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
+    const extraImages = await prepare('SELECT image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;
     const variations = await prepare('SELECT * FROM product_variations WHERE product_id = ? ORDER BY sort_order ASC').all(req.params.id);
     res.render('admin/product-form', { product, variations, error: null });
@@ -391,12 +391,12 @@ router.post('/products/toggle-active/:id', asyncHandler(async (req, res) => {
 
 router.post('/products/delete/:id', asyncHandler(async (req, res) => {
   try {
-    const product = await prepare('SELECT * FROM products WHERE id = ?').get(req.params.id);
+    const product = await prepare('SELECT image_url FROM products WHERE id = ?').get(req.params.id);
     if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') {
       const imgPath = path.join(__dirname, '..', 'public', product.image_url);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
     }
-    const extraImages = await prepare('SELECT * FROM product_images WHERE product_id = ?').all(req.params.id);
+    const extraImages = await prepare('SELECT image_url FROM product_images WHERE product_id = ?').all(req.params.id);
     extraImages.forEach(img => {
       const imgPath = path.join(__dirname, '..', 'public', img.image_url);
       if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);

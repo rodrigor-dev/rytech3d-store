@@ -44,7 +44,7 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
   const orderItems = [];
 
   for (const item of items) {
-    const product = await prepare('SELECT * FROM products WHERE id = ? AND active = 1').get(item.product_id);
+    const product = await prepare('SELECT id, name, price FROM products WHERE id = ? AND active = 1').get(item.product_id);
     if (!product) {
       return res.status(400).json({ error: `Produto "${item.product_name || item.product_id}" não encontrado.` });
     }
