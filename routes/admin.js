@@ -179,7 +179,7 @@ router.post('/upload-image', singleUpload.single('file'), asyncHandler(async (re
   }
 }));
 
-router.post('/upload-video', singleUpload.single('file'), asyncHandler(async (req, res) => {
+router.post('/upload-video', mixedUpload.single('file'), asyncHandler(async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
     const allowed = /mp4|webm|ogg|mov|avi/;
