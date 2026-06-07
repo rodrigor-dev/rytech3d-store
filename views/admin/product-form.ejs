@@ -71,6 +71,21 @@
           <input type="text" id="videoUrlInput" name="video_url_fallback" value="<%= product && product.video_url && !product.video_url.startsWith('/uploads/') ? product.video_url : '' %>" placeholder="https://youtube.com/watch?v=..." class="form-control" style="font-family:monospace;margin-top:4px">
         </div>
 
+        <div class="form-group" id="mainMediaGroup" style="<%= product && product.video_url && product.image_url && product.image_url !== '/uploads/products/default.svg' ? '' : 'display:none' %>">
+          <label>Mídia Principal na Página do Produto</label>
+          <div style="display:flex;gap:16px;margin-top:6px">
+            <label class="variation-option <%= !product || product.main_media === 'image' || !product.main_media ? 'selected' : '' %>">
+              <input type="radio" name="main_media" value="image" <%= (!product || product.main_media === 'image' || !product.main_media) ? 'checked' : '' %> onchange="toggleMainMedia()">
+              <span><i class="fas fa-image"></i> Foto</span>
+            </label>
+            <label class="variation-option <%= product && product.main_media === 'video' ? 'selected' : '' %>">
+              <input type="radio" name="main_media" value="video" <%= product && product.main_media === 'video' ? 'checked' : '' %> onchange="toggleMainMedia()">
+              <span><i class="fas fa-video"></i> Vídeo</span>
+            </label>
+          </div>
+          <small class="form-help">Define o que aparece primeiro na página do produto: a foto principal ou o vídeo.</small>
+        </div>
+
         <div class="form-group">
           <label>Imagens do Produto (máx. 6)</label>
           <div class="image-upload-area">
@@ -262,6 +277,7 @@ function handleFiles(input) {
             div.dataset.uploaded = '1';
             uploaded++;
             progress.textContent = uploaded + '/' + toAdd.length + ' enviadas';
+            showMainMediaGroup();
           } else {
             div.remove();
             alert('Erro ao enviar ' + file.name + ': ' + (data.error || 'Erro desconhecido'));
@@ -289,6 +305,7 @@ function removeExisting(btn, url) {
   removed.value = existing.join(',');
   btn.closest('.image-preview-item').remove();
   updateImageCount();
+  showMainMediaGroup();
 }
 function updateImageCount() {
   const count = document.querySelectorAll('#imagePreviewContainer .image-preview-item').length;
@@ -314,6 +331,7 @@ function handleVideo(input) {
           + '</div>';
         document.getElementById('videoUrlInput').value = '';
         help.textContent = 'Vídeo enviado! Você pode substituir por uma URL externa abaixo:';
+        showMainMediaGroup();
       } else {
         preview.innerHTML = '';
         alert('Erro ao enviar vídeo: ' + (data.error || 'Erro desconhecido'));
@@ -325,6 +343,23 @@ function handleVideo(input) {
     });
 }
 
+function showMainMediaGroup() {
+  const group = document.getElementById('mainMediaGroup');
+  const hasImage = document.querySelector('#imagePreviewContainer .image-preview-item[data-existing], input[name="uploaded_images"]');
+  const hasVideo = document.querySelector('#videoPreview input[name="uploaded_video"]') || document.querySelector('#videoPreview input[name="video_url_input"]');
+  if (hasImage && hasVideo) {
+    group.style.display = '';
+  } else {
+    group.style.display = 'none';
+  }
+}
+
+function toggleMainMedia() {
+  document.querySelectorAll('#mainMediaGroup .variation-option').forEach(function(el) {
+    el.classList.toggle('selected', el.querySelector('input').checked);
+  });
+}
+
 function deleteVideo() {
   if (!confirm('Remover este vídeo?')) return;
   const productId = <%= product ? product.id : 'null' %>;
@@ -334,6 +369,7 @@ function deleteVideo() {
     preview.innerHTML = '';
     document.getElementById('videoUrlInput').value = '';
     document.getElementById('videoHelp').textContent = 'Ou cole uma URL externa (YouTube, Vimeo):';
+    showMainMediaGroup();
     return;
   }
   fetch('/admin/products/delete-video', {

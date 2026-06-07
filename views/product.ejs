@@ -8,9 +8,24 @@
 
     <div class="product-detail">
       <div class="product-detail-image">
+        <% if (product.main_media === 'video' && product.video_url) { %>
+        <div class="product-video-main">
+          <div class="video-container">
+            <% if (product.video_url.includes('youtube') || product.video_url.includes('youtu.be')) { %>
+              <iframe src="<%= product.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') %>" frameborder="0" allowfullscreen></iframe>
+            <% } else { %>
+              <video controls class="product-video-player" preload="none" poster="<%= product.image_url %>">
+                <source src="<%= product.video_url %>" type="<%= product.video_mime || 'video/mp4' %>">
+                Seu navegador não suporta vídeo HTML5.
+              </video>
+            <% } %>
+          </div>
+        </div>
+        <% } else { %>
         <div class="product-image-main" id="mainImageContainer">
           <img id="mainProductImage" src="<%= product.image_url %>" alt="<%= product.name %>" onerror="this.src='/uploads/products/default.svg'">
         </div>
+        <% } %>
         <div class="product-thumbnails" id="productThumbnails">
           <img src="<%= product.image_url %>" alt="<%= product.name %>" class="thumb active" onclick="changeImage(this.src)" onerror="this.src='/uploads/products/default.svg'">
           <% if (product.extraImages) { product.extraImages.forEach(img => { %>
@@ -68,14 +83,15 @@
                   <label class="variation-label"><%= groupName %></label>
                   <div class="variation-options">
                     <% grouped[groupName].forEach((v, idx) => { %>
-                      <label class="variation-option <%= idx === 0 ? 'selected' : '' %>">
-                        <input type="radio" name="var_<%= groupName.toLowerCase() %>" value="<%= v.variation_name %>" data-price="<%= v.price_modifier %>" <%= idx === 0 ? 'checked' : '' %> onchange="updateVariationPrice()">
+                      <label class="variation-option">
+                        <input type="radio" name="var_<%= groupName.toLowerCase() %>" value="<%= v.variation_name %>" data-price="<%= v.price_modifier %>" onchange="updateVariationPrice(); checkVariations()">
                         <span><%= v.variation_name %><% if (v.price_modifier > 0) { %> <small>+R$ <%= v.price_modifier.toFixed(2).replace('.', ',') %></small><% } %></span>
                       </label>
-                    <% }) %>
-                  </div>
-                </div>
               <% }) %>
+            </div>
+            <div id="variationRequiredMsg" style="display:none;color:var(--accent);font-size:0.8rem;margin-top:4px"><i class="fas fa-exclamation-circle"></i> Selecione uma opção para continuar</div>
+          </div>
+        <% }) %>
             </div>
           <% } %>
           <button class="btn btn-primary btn-lg add-to-cart-btn" 
@@ -83,6 +99,7 @@
             data-name="<%= product.name %>" 
             data-price="<%= product.price %>" 
             data-image="<%= product.image_url %>"
+            <%= typeof variations !== 'undefined' && variations && variations.length > 0 ? 'disabled' : '' %>
             onclick="addWithQty(this)">
             <i class="fas fa-cart-plus"></i> Adicionar ao Carrinho
           </button>
@@ -99,7 +116,7 @@
       </div>
     </div>
 
-    <% if (product.video_url) { %>
+    <% if (product.video_url && product.main_media !== 'video') { %>
     <div class="product-video">
       <h2 class="section-title">Vídeo do Produto</h2>
       <div class="video-container">
@@ -176,9 +193,33 @@ function getSelectedVariations() {
   return vars;
 }
 
+function checkVariations() {
+  const groups = document.querySelectorAll('.variation-group');
+  const btn = document.querySelector('.add-to-cart-btn');
+  const msg = document.getElementById('variationRequiredMsg');
+  if (!groups.length) return;
+  let allSelected = true;
+  groups.forEach(function(g) {
+    if (!g.querySelector('input[type="radio"]:checked')) allSelected = false;
+  });
+  if (btn) btn.disabled = !allSelected;
+  if (msg) msg.style.display = allSelected ? 'none' : '';
+}
+
 function addWithQty(btn) {
-  const qty = parseInt(document.getElementById('productQty').value) || 1;
   const variations = getSelectedVariations();
+  const groups = document.querySelectorAll('.variation-group');
+  if (groups.length) {
+    let allSelected = true;
+    groups.forEach(function(g) {
+      if (!g.querySelector('input[type="radio"]:checked')) allSelected = false;
+    });
+    if (!allSelected) {
+      showToast('Selecione todas as variações obrigatórias antes de adicionar ao carrinho.');
+      return;
+    }
+  }
+  const qty = parseInt(document.getElementById('productQty').value) || 1;
   const hasVars = Object.keys(variations).length > 0;
   const basePrice = parseFloat(btn.dataset.price);
   let totalVarPrice = 0;
@@ -201,6 +242,10 @@ function updateVariationPrice() {
   const total = basePrice + totalVar;
   document.querySelector('.price-current').textContent = 'R$ ' + total.toFixed(2).replace('.', ',');
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+  checkVariations();
+});
 </script>
 
 <style>
@@ -210,6 +255,10 @@ function updateVariationPrice() {
 .product-thumbnails .thumb:hover { border-color: var(--accent); }
 
 .product-video { margin-top: 40px; }
+.product-video-main { margin-bottom: 12px; }
+.product-video-main .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius); background: #000; }
+.product-video-main .video-container iframe, .product-video-main .product-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+.product-video-main .product-video-player { object-fit: contain; background: #000; border-radius: var(--radius); }
 .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius); background: var(--bg-card); }
 .video-container iframe, .product-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 .product-video-player { object-fit: contain; background: #000; border-radius: var(--radius); }
@@ -224,6 +273,7 @@ function updateVariationPrice() {
 .variation-option input:checked + span { border-color: var(--accent); background: rgba(0,212,170,0.1); color: var(--accent); }
 .variation-option:hover span { border-color: var(--accent); }
 .variation-option small { color: var(--text-muted); font-weight: 500; }
+.add-to-cart-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>
 
 <%- include('partials/footer') %>

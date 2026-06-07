@@ -40,7 +40,7 @@ router.get('/', asyncHandler(async (req, res) => {
 }));
 
 router.get('/product/:id', asyncHandler(async (req, res) => {
-    const product = await prepare('SELECT id, name, description, price, delivery_time, category, image_url, video_url, video_mime FROM products WHERE id = ? AND active = 1').get(req.params.id);
+    const product = await prepare('SELECT id, name, description, price, delivery_time, category, image_url, video_url, video_mime, main_media FROM products WHERE id = ? AND active = 1').get(req.params.id);
     if (!product) return res.status(404).render('404');
     const extraImages = await prepare('SELECT image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;

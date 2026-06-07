@@ -223,8 +223,9 @@ const SCHEMA = isPg() ? `
     id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT NOT NULL,
     price REAL NOT NULL, delivery_time TEXT NOT NULL, category TEXT DEFAULT 'Geral',
     image_url TEXT DEFAULT '/uploads/products/default.svg',
-    video_url TEXT DEFAULT '', video_data TEXT DEFAULT NULL, video_mime TEXT DEFAULT NULL,
-    featured INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+     video_url TEXT DEFAULT '', video_data TEXT DEFAULT NULL, video_mime TEXT DEFAULT NULL,
+     main_media TEXT DEFAULT 'image',
+     featured INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
@@ -289,7 +290,9 @@ const SCHEMA = isPg() ? `
     id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
     description TEXT NOT NULL, price REAL NOT NULL, delivery_time TEXT NOT NULL,
     category TEXT DEFAULT 'Geral', image_url TEXT DEFAULT '/uploads/products/default.svg',
-    video_url TEXT DEFAULT '', video_data TEXT DEFAULT NULL, video_mime TEXT DEFAULT NULL, featured INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
+    video_url TEXT DEFAULT '', video_data TEXT DEFAULT NULL, video_mime TEXT DEFAULT NULL,
+    main_media TEXT DEFAULT 'image',
+    featured INTEGER DEFAULT 0, active INTEGER DEFAULT 1,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -379,6 +382,7 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE product_images ADD COLUMN IF NOT EXISTS image_mime TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration product_images.image_mime:', e.message); }
     try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS video_data TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration video_data:', e.message); }
     try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS video_mime TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration video_mime:', e.message); }
+    try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS main_media TEXT DEFAULT 'image'"); } catch (e) { console.log('pg migration main_media:', e.message); }
     try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variations TEXT DEFAULT '[]'"); } catch (e) { console.log('pg migration order_items.variations:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
@@ -397,6 +401,7 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_url TEXT DEFAULT ''"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_data TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_mime TEXT DEFAULT NULL"); } catch {}
+    try { _sqlite.exec("ALTER TABLE products ADD COLUMN main_media TEXT DEFAULT 'image'"); } catch {}
     try { _sqlite.exec("ALTER TABLE order_items ADD COLUMN variations TEXT DEFAULT '[]'"); } catch {}
     try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_variations (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, group_name TEXT NOT NULL, variation_name TEXT NOT NULL, price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
     try { _sqlite.exec("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT NULL"); } catch {}
@@ -407,6 +412,7 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE product_images ADD COLUMN image_mime TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_data TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_mime TEXT DEFAULT NULL"); } catch {}
+    try { _sqlite.exec("ALTER TABLE products ADD COLUMN main_media TEXT DEFAULT 'image'"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }

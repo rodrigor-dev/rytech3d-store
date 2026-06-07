@@ -185,7 +185,7 @@ router.get('/products/new', asyncHandler(async (req, res) => {
 
 router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   try {
-    const product = await prepare('SELECT id, name, description, price, delivery_time, category, image_url, video_url, featured, active FROM products WHERE id = ?').get(req.params.id);
+    const product = await prepare('SELECT id, name, description, price, delivery_time, category, image_url, video_url, main_media, featured, active FROM products WHERE id = ?').get(req.params.id);
     if (!product) return res.status(404).send('Produto não encontrado');
     const extraImages = await prepare('SELECT image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;
@@ -318,14 +318,16 @@ router.post('/products/save', mixedUpload.fields([
       } catch (e) { console.error('Erro ao ler vídeo do disco:', e.message); }
     }
 
+    const mainMedia = req.body.main_media === 'video' ? 'video' : 'image';
+
     if (id) {
-      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, video_data=?, video_mime=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, featured ? 1 : 0, activeValue, parseInt(id));
+      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, video_data=?, video_mime=?, main_media=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, mainMedia, featured ? 1 : 0, activeValue, parseInt(id));
       await prepare('DELETE FROM product_images WHERE product_id = ?').run(id);
       var targetId = id;
     } else {
-      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, image_data, image_mime, video_url, video_data, video_mime, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, featured ? 1 : 0, activeValue);
+      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, image_data, image_mime, video_url, video_data, video_mime, main_media, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, mainMedia, featured ? 1 : 0, activeValue);
       let productId = result.lastInsertRowid;
       if (!productId) {
         const last = await prepare('SELECT MAX(id) as id FROM products').get();
