@@ -525,6 +525,46 @@ async function initDatabase() {
   }
 
   console.log('✅ Banco de dados inicializado!');
+
+  // Optimize existing product images with sharp compression (once per file)
+  try {
+    const sharp = require('sharp');
+    const imageExts = /\.(jpe?g|png|gif|webp)$/i;
+    const rows = await prepare("SELECT id, image_url FROM products WHERE image_url != '' AND image_url != '/uploads/products/default.svg'").all();
+    const extraRows = await prepare("SELECT id, image_url FROM product_images WHERE image_url != ''").all();
+    let compressed = 0;
+    for (const r of [...rows, ...extraRows]) {
+      const fp = path.join(__dirname, 'public', r.image_url);
+      if (fs.existsSync(fp) && imageExts.test(path.extname(r.image_url))) {
+        const buf = fs.readFileSync(fp);
+        try {
+          const extName = path.extname(r.image_url).toLowerCase();
+          let pipeline = sharp(buf);
+          if (extName === '.jpg' || extName === '.jpeg') pipeline = pipeline.jpeg({ quality: 80, progressive: true });
+          else if (extName === '.png') pipeline = pipeline.png({ quality: 80, progressive: true });
+          else if (extName === '.webp') pipeline = pipeline.webp({ quality: 80 });
+          const optimized = await pipeline.toBuffer();
+          if (optimized.length < buf.length * 0.9) {
+            fs.writeFileSync(fp, optimized);
+            const b64 = optimized.toString('base64');
+            const ext = path.extname(r.image_url).toLowerCase().replace('.', '');
+            const mime = ext === 'jpg' ? 'image/jpeg' : `image/${ext}`;
+            if (r.image_url.includes('/products/')) {
+              await prepare('UPDATE products SET image_data = ?, image_mime = ? WHERE id = ?').run(b64, mime, r.id);
+            } else {
+              await prepare('UPDATE product_images SET image_data = ?, image_mime = ? WHERE id = ?').run(b64, mime, r.id);
+            }
+            compressed++;
+          }
+        } catch (e) {
+          console.error('Erro ao otimizar', r.image_url, e.message);
+        }
+      }
+    }
+    if (compressed > 0) console.log(`🗜️ Imagens otimizadas com sharp: ${compressed} arquivos`);
+  } catch (err) {
+    if (err.code !== 'MODULE_NOT_FOUND') console.error('Erro na otimização de imagens:', err.message);
+  }
 }
 
 module.exports = { initDatabase, prepare, exec, transaction, getSettings };

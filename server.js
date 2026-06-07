@@ -51,10 +51,20 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
+
+const fileCache = new Map();
+const FILE_CACHE_MAX = 100;
+
 app.use(async (req, res, next) => {
   if (!req.path.startsWith('/uploads/')) return next();
   const filePath = path.join(__dirname, 'public', req.path.replace(/^\//, ''));
   if (fs.existsSync(filePath)) return next();
+  const cached = fileCache.get(req.path);
+  if (cached) {
+    res.set('Content-Type', cached.mime);
+    res.set('Cache-Control', 'public, max-age=31536000');
+    return res.send(cached.buf);
+  }
   try {
     const url = req.path.replace(/\\/g, '/');
     let row = await prepare('SELECT image_data, image_mime, video_data, video_mime FROM products WHERE image_url = ?').get(url);
@@ -64,12 +74,16 @@ app.use(async (req, res, next) => {
     if (row) {
       if (row.video_data) {
         const buf = Buffer.from(row.video_data, 'base64');
+        if (fileCache.size >= FILE_CACHE_MAX) fileCache.delete(fileCache.keys().next().value);
+        fileCache.set(req.path, { buf, mime: row.video_mime || 'video/mp4' });
         res.set('Content-Type', row.video_mime || 'video/mp4');
         res.set('Cache-Control', 'public, max-age=31536000');
         return res.send(buf);
       }
       if (row.image_data) {
         const buf = Buffer.from(row.image_data, 'base64');
+        if (fileCache.size >= FILE_CACHE_MAX) fileCache.delete(fileCache.keys().next().value);
+        fileCache.set(req.path, { buf, mime: row.image_mime || 'image/jpeg' });
         res.set('Content-Type', row.image_mime || 'image/jpeg');
         res.set('Cache-Control', 'public, max-age=31536000');
         return res.send(buf);
