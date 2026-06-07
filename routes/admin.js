@@ -179,16 +179,32 @@ router.post('/upload-image', singleUpload.single('file'), asyncHandler(async (re
   }
 }));
 
+router.post('/upload-video', singleUpload.single('file'), asyncHandler(async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
+    const allowed = /mp4|webm|ogg|mov|avi/;
+    const ext = path.extname(req.file.originalname).toLowerCase();
+    if (!allowed.test(ext)) return res.status(400).json({ error: 'Formato de vídeo não suportado. Use MP4, WebM, OGG, MOV ou AVI.' });
+    const { url } = saveProductFile(req.file.buffer, req.file.originalname);
+    res.json({ url });
+  } catch (err) {
+    console.error('Erro no upload de vídeo:', err);
+    res.status(500).json({ error: 'Erro ao fazer upload de vídeo.' });
+  }
+}));
+
 router.post('/products/save', mixedUpload.fields([
   { name: 'video_file', maxCount: 1 }
 ]), asyncHandler(async (req, res) => {
   try {
     const { id, name, description, price, delivery_time, category, featured, active } = req.body;
-    let video_url = req.body.video_url_input || '';
-    if (req.files && req.files['video_file'] && req.files['video_file'].length > 0) {
-      const vf = req.files['video_file'][0];
-      const { url } = saveProductFile(vf.buffer, vf.originalname);
-      video_url = url;
+    let video_url = '';
+    if (req.body.uploaded_video) {
+      video_url = req.body.uploaded_video;
+    } else if (req.body.video_url_input && req.body.video_url_input.startsWith('/uploads/')) {
+      video_url = req.body.video_url_input;
+    } else if (req.body.video_url_fallback) {
+      video_url = req.body.video_url_fallback;
     }
     if (!name || !description || !price || !delivery_time) {
       return res.render('admin/product-form', {
@@ -260,14 +276,30 @@ router.post('/products/save', mixedUpload.fields([
       mainImageMime = allImages[0].mime;
     }
 
+    let videoData = null, videoMime = null;
+    if (video_url && video_url.startsWith('/uploads/')) {
+      const videoPath = path.join(__dirname, '..', 'public', video_url.replace(/^\//, ''));
+      try {
+        if (fs.existsSync(videoPath)) {
+          const buf = fs.readFileSync(videoPath);
+          videoData = buf.toString('base64');
+          const vext = path.extname(video_url).toLowerCase();
+          videoMime = vext === '.webm' ? 'video/webm' : vext === '.ogg' ? 'video/ogg' : vext === '.mov' ? 'video/quicktime' : vext === '.avi' ? 'video/x-msvideo' : 'video/mp4';
+        } else if (id) {
+          const existing = await prepare('SELECT video_data, video_mime FROM products WHERE id = ?').get(id);
+          if (existing) { videoData = existing.video_data; videoMime = existing.video_mime; }
+        }
+      } catch (e) { console.error('Erro ao ler vídeo do disco:', e.message); }
+    }
+
     if (id) {
-      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', featured ? 1 : 0, activeValue, parseInt(id));
+      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, video_data=?, video_mime=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, featured ? 1 : 0, activeValue, parseInt(id));
       await prepare('DELETE FROM product_images WHERE product_id = ?').run(id);
       var targetId = id;
     } else {
-      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, image_data, image_mime, video_url, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', featured ? 1 : 0, activeValue);
+      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, image_data, image_mime, video_url, video_data, video_mime, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, featured ? 1 : 0, activeValue);
       let productId = result.lastInsertRowid;
       if (!productId) {
         const last = await prepare('SELECT MAX(id) as id FROM products').get();
@@ -327,7 +359,7 @@ router.post('/products/delete-video', asyncHandler(async (req, res) => {
       const videoPath = path.join(__dirname, '..', 'public', product.video_url);
       if (fs.existsSync(videoPath)) fs.unlinkSync(videoPath);
     }
-    await prepare('UPDATE products SET video_url = ? WHERE id = ?').run('', product_id);
+    await prepare('UPDATE products SET video_url = ?, video_data = ?, video_mime = ? WHERE id = ?').run('', null, null, product_id);
     res.json({ success: true });
   } catch (err) {
     console.error('Erro ao deletar vídeo:', err);

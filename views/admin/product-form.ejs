@@ -43,14 +43,32 @@
         </div>
 
         <div class="form-group">
-          <label for="video_url_input">URL do Vídeo (opcional)</label>
-          <input type="text" id="video_url_input" name="video_url_input" value="<%= product && product.video_url ? product.video_url : '' %>" placeholder="https://youtube.com/watch?v=... ou URL direto do vídeo" class="form-control" style="font-family:monospace">
-          <small class="form-help">YouTube, Vimeo, ou link direto de vídeo hospedado externamente</small>
-          <% if (product && product.video_url) { %>
-            <div style="margin-top:8px">
-              <button type="button" class="btn btn-danger btn-small" onclick="deleteVideo()"><i class="fas fa-trash"></i> Remover Vídeo</button>
-            </div>
-          <% } %>
+          <label>Vídeo do Produto (opcional)</label>
+          <div class="video-upload-area" style="display:flex;flex-wrap:wrap;gap:12px;align-items:center">
+            <label class="btn btn-outline" style="cursor:pointer;display:inline-flex;align-items:center;gap:6px">
+              <i class="fas fa-upload"></i> Selecionar Arquivo
+              <input type="file" id="videoFile" accept="video/mp4,video/webm,video/ogg,video/quicktime" style="display:none" onchange="handleVideo(this)">
+            </label>
+            <span style="color:var(--text-muted);font-size:0.85rem">MP4, WebM, OGG, MOV — máx. 100MB</span>
+          </div>
+          <div id="videoPreview" style="margin-top:8px">
+            <% if (product && product.video_url) { %>
+              <div class="video-preview-item" style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border)">
+                <i class="fas fa-video" style="font-size:1.2rem;color:var(--accent)"></i>
+                <span style="flex:1;font-size:0.85rem;word-break:break-all">
+                  <% if (product.video_url.includes('youtube') || product.video_url.includes('youtu.be')) { %>
+                    Vídeo do YouTube
+                  <% } else { %>
+                    <%= product.video_url.split('/').pop() %>
+                  <% } %>
+                </span>
+                <input type="hidden" name="video_url_input" value="<%= product.video_url %>">
+                <button type="button" class="btn btn-danger btn-small" onclick="deleteVideo()"><i class="fas fa-trash"></i></button>
+              </div>
+            <% } %>
+          </div>
+          <small class="form-help" id="videoHelp">Ou cole uma URL externa (YouTube, Vimeo):</small>
+          <input type="text" id="videoUrlInput" name="video_url_fallback" value="<%= product && product.video_url && !product.video_url.startsWith('/uploads/') ? product.video_url : '' %>" placeholder="https://youtube.com/watch?v=..." class="form-control" style="font-family:monospace;margin-top:4px">
         </div>
 
         <div class="form-group">
@@ -276,9 +294,48 @@ function updateImageCount() {
   const count = document.querySelectorAll('#imagePreviewContainer .image-preview-item').length;
   document.getElementById('imageCount').textContent = count + '/6 imagens';
 }
+function handleVideo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  const preview = document.getElementById('videoPreview');
+  const help = document.getElementById('videoHelp');
+  preview.innerHTML = '<div style="padding:12px;color:var(--text-muted)"><i class="fas fa-spinner fa-spin"></i> Enviando vídeo...</div>';
+  fetch('/admin/upload-video', { method: 'POST', body: formData })
+    .then(r => r.json())
+    .then(data => {
+      if (data.url) {
+        preview.innerHTML = '<div class="video-preview-item" style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--bg-secondary);border-radius:var(--radius-sm);border:1px solid var(--border)">'
+          + '<i class="fas fa-video" style="font-size:1.2rem;color:var(--accent)"></i>'
+          + '<span style="flex:1;font-size:0.85rem;word-break:break-all">' + file.name + '</span>'
+          + '<input type="hidden" name="uploaded_video" value="' + data.url + '">'
+          + '<button type="button" class="btn btn-danger btn-small" onclick="deleteVideo()"><i class="fas fa-trash"></i></button>'
+          + '</div>';
+        document.getElementById('videoUrlInput').value = '';
+        help.textContent = 'Vídeo enviado! Você pode substituir por uma URL externa abaixo:';
+      } else {
+        preview.innerHTML = '';
+        alert('Erro ao enviar vídeo: ' + (data.error || 'Erro desconhecido'));
+      }
+    })
+    .catch(function() {
+      preview.innerHTML = '';
+      alert('Erro de conexão ao enviar vídeo.');
+    });
+}
+
 function deleteVideo() {
   if (!confirm('Remover este vídeo?')) return;
   const productId = <%= product ? product.id : 'null' %>;
+  const preview = document.getElementById('videoPreview');
+  const hasUploaded = preview.querySelector('input[name="uploaded_video"]');
+  if (hasUploaded || !productId) {
+    preview.innerHTML = '';
+    document.getElementById('videoUrlInput').value = '';
+    document.getElementById('videoHelp').textContent = 'Ou cole uma URL externa (YouTube, Vimeo):';
+    return;
+  }
   fetch('/admin/products/delete-video', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

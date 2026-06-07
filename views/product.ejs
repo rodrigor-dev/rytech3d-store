@@ -107,7 +107,7 @@
           <iframe src="<%= product.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') %>" frameborder="0" allowfullscreen></iframe>
         <% } else { %>
           <video controls class="product-video-player">
-            <source src="<%= product.video_url %>" type="video/mp4">
+            <source src="<%= product.video_url %>" type="<%= product.video_mime || 'video/mp4' %>">
             Seu navegador não suporta vídeo HTML5.
           </video>
         <% } %>

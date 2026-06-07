@@ -57,16 +57,23 @@ app.use(async (req, res, next) => {
   if (fs.existsSync(filePath)) return next();
   try {
     const url = req.path.replace(/\\/g, '/');
-    let row = await prepare('SELECT image_data, image_mime FROM products WHERE image_url = ?').get(url);
+    let row = await prepare('SELECT image_data, image_mime, video_data, video_mime FROM products WHERE image_url = ?').get(url);
     if (!row) {
       row = await prepare('SELECT image_data, image_mime FROM product_images WHERE image_url = ?').get(url);
     }
-    if (row && row.image_data) {
-      const mime = row.image_mime || 'image/jpeg';
-      const buf = Buffer.from(row.image_data, 'base64');
-      res.set('Content-Type', mime);
-      res.set('Cache-Control', 'public, max-age=31536000');
-      return res.send(buf);
+    if (row) {
+      if (row.video_data) {
+        const buf = Buffer.from(row.video_data, 'base64');
+        res.set('Content-Type', row.video_mime || 'video/mp4');
+        res.set('Cache-Control', 'public, max-age=31536000');
+        return res.send(buf);
+      }
+      if (row.image_data) {
+        const buf = Buffer.from(row.image_data, 'base64');
+        res.set('Content-Type', row.image_mime || 'image/jpeg');
+        res.set('Cache-Control', 'public, max-age=31536000');
+        return res.send(buf);
+      }
     }
     next();
   } catch { next(); }
