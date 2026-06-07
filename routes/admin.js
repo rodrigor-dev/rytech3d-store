@@ -58,6 +58,18 @@ const singleUpload = multer({
   }
 });
 
+const videoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    const allowed = /mp4|webm|ogg|mov|avi/;
+    const ext = allowed.test(path.extname(file.originalname).toLowerCase());
+    const mime = allowed.test(file.mimetype);
+    if (ext || mime) return cb(null, true);
+    cb(new Error('Apenas vídeos (MP4, WebM, OGG, MOV, AVI) são permitidos.'));
+  }
+});
+
 function saveProductFile(buffer, originalname) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
   const ext = path.extname(originalname);
@@ -179,12 +191,9 @@ router.post('/upload-image', singleUpload.single('file'), asyncHandler(async (re
   }
 }));
 
-router.post('/upload-video', mixedUpload.single('file'), asyncHandler(async (req, res) => {
+router.post('/upload-video', videoUpload.single('file'), asyncHandler(async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-    const allowed = /mp4|webm|ogg|mov|avi/;
-    const ext = path.extname(req.file.originalname).toLowerCase();
-    if (!allowed.test(ext)) return res.status(400).json({ error: 'Formato de vídeo não suportado. Use MP4, WebM, OGG, MOV ou AVI.' });
     const { url } = saveProductFile(req.file.buffer, req.file.originalname);
     res.json({ url });
   } catch (err) {
