@@ -279,6 +279,22 @@ img { max-width: 100%; height: auto; }
   100% { transform: rotateX(-20deg) rotateY(360deg); }
 }
 
+@media (max-width: 768px) {
+  .floating-cube { animation-duration: 20s; }
+  .hero-3d-model { width: 180px; height: 180px; perspective: 400px; }
+  .floating-cube, .cube-face { width: 120px; height: 120px; }
+  .front { transform: translateZ(60px); }
+  .back { transform: rotateY(180deg) translateZ(60px); }
+  .right { transform: rotateY(90deg) translateZ(60px); }
+  .left { transform: rotateY(-90deg) translateZ(60px); }
+  .top { transform: rotateX(90deg) translateZ(60px); }
+  .bottom { transform: rotateX(-90deg) translateZ(60px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .floating-cube { animation: none; transform: rotateX(-20deg) rotateY(0deg); }
+}
+
 .hero-wave {
   position: absolute;
   bottom: -1px;

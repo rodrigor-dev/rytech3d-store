@@ -9,6 +9,8 @@ const fs = require('fs');
 const { adminAuth, generateAdminToken } = require('../middleware/auth');
 const { getSettings } = require('../database');
 
+const sharp = require('sharp');
+
 const asyncHandler = fn => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 
 router.param('id', (req, res, next, val) => {
@@ -70,12 +72,27 @@ const videoUpload = multer({
   }
 });
 
-function saveProductFile(buffer, originalname) {
+async function saveProductFile(buffer, originalname) {
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-  const ext = path.extname(originalname);
+  const ext = path.extname(originalname).toLowerCase();
   const filename = `product_${Date.now()}_${Math.random().toString(36).substr(2, 9)}${ext}`;
   const filePath = path.join(uploadsDir, filename);
-  fs.writeFileSync(filePath, buffer);
+  const isImage = /\.(jpe?g|png|gif|webp)$/i.test(ext);
+  if (isImage) {
+    try {
+      let pipeline = sharp(buffer);
+      if (ext === '.jpg' || ext === '.jpeg') pipeline = pipeline.jpeg({ quality: 80, progressive: true });
+      else if (ext === '.png') pipeline = pipeline.png({ quality: 80, progressive: true });
+      else if (ext === '.webp') pipeline = pipeline.webp({ quality: 80 });
+      const compressed = await pipeline.toBuffer();
+      fs.writeFileSync(filePath, compressed);
+    } catch (e) {
+      console.error('Erro ao comprimir imagem, salvando original:', e.message);
+      fs.writeFileSync(filePath, buffer);
+    }
+  } else {
+    fs.writeFileSync(filePath, buffer);
+  }
   return { url: '/uploads/products/' + filename, path: filePath };
 }
 
@@ -183,7 +200,7 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
 router.post('/upload-image', singleUpload.single('file'), asyncHandler(async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-    const { url } = saveProductFile(req.file.buffer, req.file.originalname);
+    const { url } = await saveProductFile(req.file.buffer, req.file.originalname);
     res.json({ url });
   } catch (err) {
     console.error('Erro no upload de imagem:', err);
@@ -194,7 +211,7 @@ router.post('/upload-image', singleUpload.single('file'), asyncHandler(async (re
 router.post('/upload-video', videoUpload.single('file'), asyncHandler(async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Nenhum arquivo enviado.' });
-    const { url } = saveProductFile(req.file.buffer, req.file.originalname);
+    const { url } = await saveProductFile(req.file.buffer, req.file.originalname);
     res.json({ url });
   } catch (err) {
     console.error('Erro no upload de vídeo:', err);
