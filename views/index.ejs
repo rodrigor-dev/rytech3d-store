@@ -13,7 +13,13 @@
           <div class="featured-slide">
             <div class="product-card" data-id="<%= product.id %>">
               <div class="product-image">
-                <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+                <% if (product.main_media === 'video' && product.video_url) { %>
+                  <video autoplay muted loop playsinline poster="<%= product.image_url %>">
+                    <source src="<%= product.video_url %>" type="<%= product.video_mime || 'video/mp4' %>">
+                  </video>
+                <% } else { %>
+                  <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+                <% } %>
                 <span class="product-badge">Destaque</span>
                 <div class="product-overlay">
                   <a href="/product/<%= product.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>
@@ -83,7 +89,13 @@
       <% products.forEach(product => { %>
         <div class="product-card" data-id="<%= product.id %>">
           <div class="product-image">
-            <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+            <% if (product.main_media === 'video' && product.video_url) { %>
+              <video autoplay muted loop playsinline poster="<%= product.image_url %>">
+                <source src="<%= product.video_url %>" type="<%= product.video_mime || 'video/mp4' %>">
+              </video>
+            <% } else { %>
+              <img src="<%= product.image_url %>" alt="<%= product.name %>" loading="lazy" onerror="this.src='/uploads/products/default.svg'">
+            <% } %>
             <% if (product.featured) { %><span class="product-badge">Destaque</span><% } %>
             <div class="product-overlay">
               <a href="/product/<%= product.id %>" class="btn btn-small btn-primary"><i class="fas fa-eye"></i> Detalhes</a>

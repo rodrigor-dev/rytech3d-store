@@ -15,15 +15,15 @@ router.get('/', asyncHandler(async (req, res) => {
     const { category, search } = req.query;
     let products;
     if (category && category !== 'Todos') {
-      products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured FROM products WHERE active = 1 AND category = ? ORDER BY featured DESC, created_at DESC').all(category);
+      products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured, video_url, video_mime, main_media FROM products WHERE active = 1 AND category = ? ORDER BY featured DESC, created_at DESC').all(category);
     } else if (search) {
-      products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured FROM products WHERE active = 1 AND (name LIKE ? OR description LIKE ?) ORDER BY featured DESC, created_at DESC').all(`%${search}%`, `%${search}%`);
+      products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured, video_url, video_mime, main_media FROM products WHERE active = 1 AND (name LIKE ? OR description LIKE ?) ORDER BY featured DESC, created_at DESC').all(`%${search}%`, `%${search}%`);
     } else {
-      products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured FROM products WHERE active = 1 ORDER BY featured DESC, created_at DESC').all();
+      products = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured, video_url, video_mime, main_media FROM products WHERE active = 1 ORDER BY featured DESC, created_at DESC').all();
     }
     const catRows = await prepare('SELECT DISTINCT category FROM products WHERE active = 1 ORDER BY category').all();
     const categories = catRows.map(c => c.category);
-    const featuredProducts = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured FROM products WHERE active = 1 AND featured = 1 ORDER BY created_at DESC LIMIT 4').all();
+    const featuredProducts = await prepare('SELECT id, name, price, image_url, category, delivery_time, featured, video_url, video_mime, main_media FROM products WHERE active = 1 AND featured = 1 ORDER BY created_at DESC LIMIT 4').all();
     const settings = await prepare('SELECT key, value FROM settings').all();
     const settingsMap = {};
     settings.forEach(s => settingsMap[s.key] = s.value);
