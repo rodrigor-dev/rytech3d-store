@@ -155,6 +155,13 @@ async function placeOrder() {
   const notes = document.getElementById('orderNotes').value;
   const full_name = document.getElementById('checkoutName').value;
   const phone = document.getElementById('checkoutPhone').value;
+  const phoneDigits = phone.replace(/\D/g, '');
+  if (!phoneDigits || phoneDigits.length < 10) {
+    showToast('Informe seu telefone para finalizar o pedido.');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pedido';
+    return;
+  }
 
   try {
     const response = await fetch('/place', {

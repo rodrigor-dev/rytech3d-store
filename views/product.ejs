@@ -8,12 +8,11 @@
 
     <div class="product-detail">
       <div class="product-detail-image">
-        <% if (product.main_media === 'video' && product.video_url) { %>
-        <div class="product-video-main">
+        <div class="product-video-main" id="productVideoMain" style="<%= product.main_media === 'video' && product.video_url ? '' : 'display:none' %>">
           <div class="video-container">
-            <% if (product.video_url.includes('youtube') || product.video_url.includes('youtu.be')) { %>
+            <% if (product.video_url && (product.video_url.includes('youtube') || product.video_url.includes('youtu.be'))) { %>
               <iframe src="<%= product.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') %>" frameborder="0" allowfullscreen></iframe>
-            <% } else { %>
+            <% } else if (product.video_url) { %>
               <video controls class="product-video-player" preload="none" poster="<%= product.image_url %>">
                 <source src="<%= product.video_url %>" type="<%= product.video_mime || 'video/mp4' %>">
                 Seu navegador não suporta vídeo HTML5.
@@ -21,11 +20,14 @@
             <% } %>
           </div>
         </div>
-        <% } else { %>
-        <div class="product-image-main" id="mainImageContainer">
+        <div class="product-image-main" id="mainImageContainer" style="<%= product.main_media === 'video' && product.video_url ? 'display:none' : '' %>">
           <img id="mainProductImage" src="<%= product.image_url %>" alt="<%= product.name %>" onerror="this.src='/uploads/products/default.svg'">
+          <% if (product.main_media === 'video' && product.video_url) { %>
+          <button class="btn btn-small btn-outline" id="showVideoBtn" onclick="showVideo()" style="margin-top:8px">
+            <i class="fas fa-video"></i> Ver Vídeo
+          </button>
+          <% } %>
         </div>
-        <% } %>
         <div class="product-thumbnails" id="productThumbnails">
           <img src="<%= product.image_url %>" alt="<%= product.name %>" class="thumb active" onclick="changeImage(this.src)" onerror="this.src='/uploads/products/default.svg'">
           <% if (product.extraImages) { product.extraImages.forEach(img => { %>
@@ -89,9 +91,9 @@
                       </label>
               <% }) %>
             </div>
-            <div id="variationRequiredMsg" style="display:none;color:var(--accent);font-size:0.8rem;margin-top:4px"><i class="fas fa-exclamation-circle"></i> Selecione uma opção para continuar</div>
           </div>
         <% }) %>
+            <div id="variationRequiredMsg" style="display:none;color:var(--accent);font-size:0.8rem;margin-top:4px"><i class="fas fa-exclamation-circle"></i> Selecione uma opção para continuar</div>
             </div>
           <% } %>
           <button class="btn btn-primary btn-lg add-to-cart-btn" 
@@ -167,9 +169,28 @@
 
 <script>
 function changeImage(src) {
-  document.getElementById('mainProductImage').src = src;
-  document.querySelectorAll('.thumb').forEach(t => t.classList.remove('active'));
-  document.querySelectorAll('.thumb').forEach(t => { if (t.src === src) t.classList.add('active'); });
+  var mainImg = document.getElementById('mainProductImage');
+  if (mainImg) mainImg.src = src;
+  var videoMain = document.getElementById('productVideoMain');
+  var imgContainer = document.getElementById('mainImageContainer');
+  var showBtn = document.getElementById('showVideoBtn');
+  if (videoMain && imgContainer) {
+    videoMain.style.display = 'none';
+    imgContainer.style.display = '';
+    if (showBtn) showBtn.style.display = '';
+  }
+  document.querySelectorAll('.thumb').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.thumb').forEach(function(t) { if (t.src === src) t.classList.add('active'); });
+}
+
+function showVideo() {
+  document.getElementById('productVideoMain').style.display = '';
+  document.getElementById('mainImageContainer').style.display = 'none';
+  var showBtn = document.getElementById('showVideoBtn');
+  if (showBtn) showBtn.style.display = 'none';
+  document.querySelectorAll('.thumb').forEach(function(t) { t.classList.remove('active'); });
+  var firstThumb = document.querySelector('.thumb');
+  if (firstThumb) firstThumb.classList.add('active');
 }
 
 function changeQty(delta) {

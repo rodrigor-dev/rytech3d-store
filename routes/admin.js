@@ -293,6 +293,15 @@ router.post('/products/save', mixedUpload.fields([
       allImages.push({ url, data, mime });
     }
 
+    const selectedMainImage = req.body.selected_main_image || null;
+    if (selectedMainImage) {
+      const idx = allImages.findIndex(function(img) { return img.url === selectedMainImage; });
+      if (idx > 0) {
+        var mainImg = allImages.splice(idx, 1)[0];
+        allImages.unshift(mainImg);
+      }
+    }
+
     let mainImageUrl = '/uploads/products/default.svg';
     let mainImageData = null;
     let mainImageMime = null;

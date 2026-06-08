@@ -25,6 +25,12 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Carrinho vazio.' });
   }
 
+  const user = await prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  const phoneDigits = phone ? phone.replace(/\D/g, '') : (user.phone || '');
+  if (!phoneDigits || phoneDigits.length < 10) {
+    return res.status(400).json({ error: 'Informe seu telefone para finalizar o pedido.' });
+  }
+
   // Update user data if provided
   if (full_name || phone) {
     const updates = {};
@@ -75,7 +81,6 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
   const orderId = await placeOrderTransaction();
 
   const order = await prepare('SELECT * FROM orders WHERE id = ?').get(orderId);
-  const user = await prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
 
   // Generate WhatsApp URL for admin notification
   let whatsappUrl = '';

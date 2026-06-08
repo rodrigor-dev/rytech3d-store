@@ -67,27 +67,26 @@ app.use(async (req, res, next) => {
   }
   try {
     const url = req.path.replace(/\\/g, '/');
-    let row = await prepare('SELECT image_data, image_mime, video_data, video_mime FROM products WHERE image_url = ?').get(url);
+    let row = await prepare('SELECT image_data, image_mime FROM products WHERE image_url = ?').get(url);
     if (!row) {
       row = await prepare('SELECT image_data, image_mime FROM product_images WHERE image_url = ?').get(url);
     }
-    if (row) {
-      if (row.video_data) {
-        const buf = Buffer.from(row.video_data, 'base64');
-        if (fileCache.size >= FILE_CACHE_MAX) fileCache.delete(fileCache.keys().next().value);
-        fileCache.set(req.path, { buf, mime: row.video_mime || 'video/mp4' });
-        res.set('Content-Type', row.video_mime || 'video/mp4');
-        res.set('Cache-Control', 'public, max-age=31536000');
-        return res.send(buf);
-      }
-      if (row.image_data) {
-        const buf = Buffer.from(row.image_data, 'base64');
-        if (fileCache.size >= FILE_CACHE_MAX) fileCache.delete(fileCache.keys().next().value);
-        fileCache.set(req.path, { buf, mime: row.image_mime || 'image/jpeg' });
-        res.set('Content-Type', row.image_mime || 'image/jpeg');
-        res.set('Cache-Control', 'public, max-age=31536000');
-        return res.send(buf);
-      }
+    if (row && row.image_data) {
+      const buf = Buffer.from(row.image_data, 'base64');
+      if (fileCache.size >= FILE_CACHE_MAX) fileCache.delete(fileCache.keys().next().value);
+      fileCache.set(req.path, { buf, mime: row.image_mime || 'image/jpeg' });
+      res.set('Content-Type', row.image_mime || 'image/jpeg');
+      res.set('Cache-Control', 'public, max-age=31536000');
+      return res.send(buf);
+    }
+    let videoRow = await prepare('SELECT video_data, video_mime FROM products WHERE video_url = ?').get(url);
+    if (videoRow && videoRow.video_data) {
+      const buf = Buffer.from(videoRow.video_data, 'base64');
+      if (fileCache.size >= FILE_CACHE_MAX) fileCache.delete(fileCache.keys().next().value);
+      fileCache.set(req.path, { buf, mime: videoRow.video_mime || 'video/mp4' });
+      res.set('Content-Type', videoRow.video_mime || 'video/mp4');
+      res.set('Cache-Control', 'public, max-age=31536000');
+      return res.send(buf);
     }
     next();
   } catch { next(); }

@@ -96,25 +96,26 @@
             <span id="imageCount" class="form-help" style="margin-left:8px"></span>
             <div id="uploadProgress" style="margin-top:8px;font-size:0.85rem;color:var(--text-muted)"></div>
           </div>
-          <small class="form-help">Formatos: JPEG, PNG, GIF, WebP. A primeira imagem será a principal. Clique no "x" para remover.</small>
+            <small class="form-help">Formatos: JPEG, PNG, GIF, WebP. Clique em uma imagem para defini-la como principal.</small>
           <div id="imagePreviewContainer" class="image-preview-grid">
             <% if (product && product.image_url && product.image_url !== '/uploads/products/default.svg') { %>
-              <div class="image-preview-item" style="border-color:var(--accent);border-width:2px" data-existing="<%= product.image_url %>">
+              <div class="image-preview-item" data-existing="<%= product.image_url %>" onclick="setMainImage(this,'<%= product.image_url %>')" style="cursor:pointer;border-color:var(--accent);border-width:2px">
                 <img src="<%= product.image_url %>" alt="" onerror="this.closest('.image-preview-item').remove()">
                 <span class="img-badge">Principal</span>
                 <input type="hidden" name="existing_images" value="<%= product.image_url %>">
-                <button type="button" class="img-del-btn" onclick="removeExisting(this,'<%= product.image_url %>')"><i class="fas fa-times"></i></button>
+                <button type="button" class="img-del-btn" onclick="event.stopPropagation();removeExisting(this,'<%= product.image_url %>')"><i class="fas fa-times"></i></button>
               </div>
             <% } %>
             <% if (product && product.extraImages) { product.extraImages.forEach(img => { %>
-              <div class="image-preview-item" data-existing="<%= img.image_url %>">
+              <div class="image-preview-item" data-existing="<%= img.image_url %>" onclick="setMainImage(this,'<%= img.image_url %>')" style="cursor:pointer">
                 <img src="<%= img.image_url %>" alt="" onerror="this.closest('.image-preview-item').remove()">
                 <input type="hidden" name="existing_images" value="<%= img.image_url %>">
-                <button type="button" class="img-del-btn" onclick="removeExisting(this,'<%= img.image_url %>')"><i class="fas fa-times"></i></button>
+                <button type="button" class="img-del-btn" onclick="event.stopPropagation();removeExisting(this,'<%= img.image_url %>')"><i class="fas fa-times"></i></button>
               </div>
             <% }) } %>
           </div>
           <input type="hidden" name="removed_images" id="removedImages" value="">
+          <input type="hidden" name="selected_main_image" id="selectedMainImage" value="<%= product && product.image_url ? product.image_url : '' %>">
         </div>
 
         <div class="form-row">
@@ -185,7 +186,6 @@
 .image-preview-grid { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 8px; }
 .image-preview-item { position: relative; width: 120px; height: 120px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
 .image-preview-item img { width: 100%; height: 100%; object-fit: cover; }
-.main-badge { position: absolute; bottom: 0; left: 0; right: 0; background: var(--accent); color: #000; font-size: 0.7rem; text-align: center; padding: 2px; font-weight: 600; }
 .img-del-btn { position: absolute; top: 2px; right: 2px; width: 22px; height: 22px; border-radius: 50%; border: none; background: rgba(239,68,68,0.9); color: #fff; font-size: 0.65rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; z-index:2; }
 .img-del-btn:hover { background: var(--red); transform: scale(1.1); }
 </style>
@@ -265,15 +265,19 @@ function handleFiles(input) {
         .then(r => r.json())
         .then(data => {
           if (data.url) {
+            var url = data.url;
             div.innerHTML = '';
+            div.style.cursor = 'pointer';
+            div.onclick = function() { setMainImage(div, url); };
             if (existing === 0 && idx === 0) {
               div.style.borderColor = 'var(--accent)';
               div.style.borderWidth = '2px';
               div.innerHTML += '<span class="img-badge">Principal</span>';
+              document.getElementById('selectedMainImage').value = url;
             }
             div.innerHTML += '<img src="'+e.target.result+'" alt="">';
-            div.innerHTML += '<input type="hidden" name="uploaded_images" value="'+data.url+'">';
-            div.innerHTML += '<button type="button" class="img-del-btn" onclick="this.closest(\'.image-preview-item\').remove()"><i class="fas fa-times"></i></button>';
+            div.innerHTML += '<input type="hidden" name="uploaded_images" value="'+url+'">';
+            div.innerHTML += '<button type="button" class="img-del-btn" onclick="event.stopPropagation();this.closest(\'.image-preview-item\').remove()"><i class="fas fa-times"></i></button>';
             div.dataset.uploaded = '1';
             uploaded++;
             progress.textContent = uploaded + '/' + toAdd.length + ' enviadas';
@@ -297,13 +301,39 @@ function handleFiles(input) {
   }
   if (toAdd.length > 0) progress.textContent = 'Enviando 0/' + toAdd.length + '...';
 }
+function setMainImage(el, url) {
+  document.querySelectorAll('#imagePreviewContainer .image-preview-item').forEach(function(item) {
+    item.style.borderColor = '';
+    item.style.borderWidth = '';
+    var badge = item.querySelector('.img-badge');
+    if (badge) badge.remove();
+  });
+  el.style.borderColor = 'var(--accent)';
+  el.style.borderWidth = '2px';
+  var span = document.createElement('span');
+  span.className = 'img-badge';
+  span.textContent = 'Principal';
+  el.appendChild(span);
+  document.getElementById('selectedMainImage').value = url;
+}
+
 function removeExisting(btn, url) {
   if (!confirm('Remover esta imagem?')) return;
   const removed = document.getElementById('removedImages');
   const existing = removed.value ? removed.value.split(',') : [];
   existing.push(url);
   removed.value = existing.join(',');
-  btn.closest('.image-preview-item').remove();
+  var item = btn.closest('.image-preview-item');
+  var selectedInput = document.getElementById('selectedMainImage');
+  if (selectedInput.value === url) {
+    selectedInput.value = '';
+    var remaining = document.querySelector('#imagePreviewContainer .image-preview-item:not([style*="display"])');
+    if (remaining) {
+      var firstUrl = remaining.querySelector('input[name="existing_images"], input[name="uploaded_images"]');
+      if (firstUrl) setMainImage(remaining, firstUrl.value);
+    }
+  }
+  item.remove();
   updateImageCount();
   showMainMediaGroup();
 }
@@ -394,7 +424,17 @@ function deleteProduct() {
   })
   .catch(() => alert('Erro ao excluir produto.'));
 }
-document.addEventListener('DOMContentLoaded', updateImageCount);
+document.addEventListener('DOMContentLoaded', function() {
+  updateImageCount();
+  var mainImg = document.querySelector('#imagePreviewContainer .img-badge');
+  if (mainImg) {
+    var parent = mainImg.closest('.image-preview-item');
+    if (parent) {
+      var url = parent.querySelector('input[name="existing_images"]') || parent.querySelector('input[name="uploaded_images"]');
+      if (url) document.getElementById('selectedMainImage').value = url.value;
+    }
+  }
+});
 </script>
 
 <%- include('partials/footer') %>

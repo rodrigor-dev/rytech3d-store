@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function() {
   updateCartBadge();
 
   document.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    if (btn.hasAttribute('onclick')) return;
     btn.addEventListener('click', function(e) {
       e.preventDefault();
       const id = parseInt(this.dataset.id);
