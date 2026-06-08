@@ -444,8 +444,15 @@ img { max-width: 100%; height: auto; }
 /* PRODUCTS GRID */
 .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
+}
+
+@media (min-width: 1200px) {
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 28px;
+  }
 }
 
 .product-card {
@@ -475,6 +482,10 @@ img { max-width: 100%; height: auto; }
   height: 100%;
   object-fit: cover;
   transition: transform 0.4s ease;
+}
+
+@media (min-width: 1024px) {
+  .product-image { height: 300px; }
 }
 
 .product-card:hover .product-image img,
