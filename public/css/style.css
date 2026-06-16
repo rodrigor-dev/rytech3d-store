@@ -490,19 +490,16 @@ img { max-width: 100%; height: auto; }
 .product-image video {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   background: #000;
   transition: transform 0.4s ease;
 }
 
-.product-card-video { display: none; }
-
 .product-card:hover .product-image img,
 .product-card:hover .product-image video { transform: scale(1.05); }
 
-@media (max-width: 1023px) {
-  .product-image:has(.product-card-video) .product-card-img { display: none; }
-  .product-card-video { display: block; width: 100%; height: 100%; object-fit: cover; }
+@media (min-width: 1024px) {
+  .product-image video { object-fit: contain; }
 }
 
 .product-badge {
