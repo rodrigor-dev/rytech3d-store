@@ -1,0 +1,270 @@
+<%- include('partials/header', { title: 'Novo Pedido Manual' }) %>
+
+<div class="admin-content">
+  <div class="admin-header">
+    <h1>Novo Pedido Manual</h1>
+    <a href="/admin/orders" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Voltar</a>
+  </div>
+
+  <% if (error) { %>
+    <div class="alert alert-error"><i class="fas fa-exclamation-circle"></i> <%= error %></div>
+  <% } %>
+
+  <form id="manualOrderForm" action="/admin/orders/manual/save" method="POST">
+    <div class="admin-card">
+      <div class="admin-card-header"><h2>Dados do Cliente</h2></div>
+      <div class="admin-card-body">
+        <div class="form-row">
+          <div class="form-group">
+            <label for="customer_name">Nome do Cliente *</label>
+            <input type="text" id="customer_name" name="customer_name" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label for="customer_company">Empresa</label>
+            <input type="text" id="customer_company" name="customer_company" class="form-control">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="customer_phone">Telefone</label>
+            <input type="text" id="customer_phone" name="customer_phone" class="form-control">
+          </div>
+          <div class="form-group">
+            <label for="customer_email">E-mail</label>
+            <input type="email" id="customer_email" name="customer_email" class="form-control">
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="admin_notes">Observações</label>
+          <textarea id="admin_notes" name="admin_notes" class="form-control" rows="2"></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="admin-card" style="margin-top:16px">
+      <div class="admin-card-header">
+        <h2>Itens do Pedido</h2>
+        <button type="button" class="btn btn-outline btn-small" onclick="addRow()"><i class="fas fa-plus"></i> Adicionar Item</button>
+      </div>
+      <div class="admin-card-body" style="overflow-x:auto">
+        <table class="admin-table" id="itemsTable">
+          <thead>
+            <tr>
+              <th style="min-width:200px">Produto</th>
+              <th style="min-width:60px">Qtd.</th>
+              <th style="min-width:100px">Preço Unit.</th>
+              <th style="min-width:80px">Custo Unit.</th>
+              <th style="min-width:100px">Desconto</th>
+              <th style="min-width:60px">Valor Desc.</th>
+              <th style="min-width:100px">Valor Final</th>
+              <th style="min-width:100px">Lucro</th>
+              <th style="width:40px"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody">
+          </tbody>
+        </table>
+        <p id="noItemsMsg" class="text-muted" style="text-align:center;padding:24px">Clique em "Adicionar Item" para começar.</p>
+      </div>
+    </div>
+
+    <div class="admin-card" style="margin-top:16px">
+      <div class="admin-card-header"><h2>Resumo Financeiro</h2></div>
+      <div class="admin-card-body">
+        <div class="finance-summary" style="margin-bottom:0">
+          <div class="finance-card">
+            <div class="label">Subtotal</div>
+            <div class="value" id="summarySubtotal">R$ 0,00</div>
+          </div>
+          <div class="finance-card">
+            <div class="label">Descontos</div>
+            <div class="value" style="color:#ff9f1c" id="summaryDiscount">R$ 0,00</div>
+          </div>
+          <div class="finance-card">
+            <div class="label">Valor Final</div>
+            <div class="value" id="summaryFinal">R$ 0,00</div>
+          </div>
+          <div class="finance-card">
+            <div class="label">Custo Total</div>
+            <div class="value negative" id="summaryCost">R$ 0,00</div>
+          </div>
+          <div class="finance-card">
+            <div class="label">Lucro</div>
+            <div class="value" id="summaryProfit">R$ 0,00</div>
+          </div>
+          <div class="finance-card">
+            <div class="label">Margem</div>
+            <div class="value" id="summaryMargin">0,00%</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="form-actions" style="margin-top:16px">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Salvar Pedido Manual</button>
+      <a href="/admin/orders" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+
+<script>
+var products = <%- JSON.stringify(products) %>;
+var rowCount = 0;
+
+function fmt(n) {
+  return 'R$ ' + n.toFixed(2).replace('.', ',');
+}
+
+function addRow(data) {
+  data = data || {};
+  var tbody = document.getElementById('itemsBody');
+  var idx = rowCount++;
+  var row = document.createElement('tr');
+  row.id = 'row-' + idx;
+  row.innerHTML = `
+    <td>
+      <select name="items[${idx}][product_id]" class="form-control product-select" data-idx="${idx}" style="width:100%" onchange="onProductChange(${idx})">
+        <option value="">Selecione um produto</option>
+        ${products.map(function(p) {
+          return '<option value="' + p.id + '" ' + (data.product_id == p.id ? 'selected' : '') + '>' + p.name + '</option>';
+        }).join('')}
+      </select>
+      <input type="hidden" name="items[${idx}][product_name]" id="pname-${idx}" value="${data.product_name || ''}">
+    </td>
+    <td><input type="number" name="items[${idx}][quantity]" class="form-control" style="width:60px" value="${data.quantity || 1}" min="1" onchange="recalc()" oninput="recalc()"></td>
+    <td><input type="number" name="items[${idx}][price]" id="pprice-${idx}" class="form-control" style="width:100px" step="0.01" min="0" value="${data.price || ''}" onchange="recalc()" oninput="recalc()"></td>
+    <td><input type="number" name="items[${idx}][cost_price]" id="pcost-${idx}" class="form-control" style="width:80px" step="0.01" min="0" value="${data.cost_price || ''}" readonly style="background:var(--bg-secondary);width:80px"></td>
+    <td>
+      <select name="items[${idx}][discount_type]" class="form-control" style="width:100px" onchange="onDiscountChange(${idx})">
+        <option value="none" ${data.discount_type === 'none' || !data.discount_type ? 'selected' : ''}>Sem desc.</option>
+        <option value="fixed" ${data.discount_type === 'fixed' ? 'selected' : ''}>R$ fixo</option>
+        <option value="percent" ${data.discount_type === 'percent' ? 'selected' : ''}>%</option>
+      </select>
+    </td>
+    <td><input type="number" name="items[${idx}][discount_value]" class="form-control" style="width:60px" step="0.01" min="0" value="${data.discount_value || ''}" onchange="recalc()" oninput="recalc()" id="dval-${idx}"></td>
+    <td id="tfinal-${idx}" style="font-weight:600">${data.price ? fmt(parseFloat(data.price) * (data.quantity || 1)) : '—'}</td>
+    <td id="tprofit-${idx}" style="font-weight:600">—</td>
+    <td><button type="button" class="btn btn-danger btn-small" onclick="removeRow(${idx})"><i class="fas fa-times"></i></button></td>
+  `;
+  tbody.appendChild(row);
+  document.getElementById('noItemsMsg').style.display = 'none';
+  recalc();
+}
+
+function removeRow(idx) {
+  var row = document.getElementById('row-' + idx);
+  if (row) { row.remove(); recalc(); }
+  var tbody = document.getElementById('itemsBody');
+  if (tbody.children.length === 0) {
+    document.getElementById('noItemsMsg').style.display = '';
+  }
+}
+
+function onProductChange(idx) {
+  var sel = document.querySelector('select[data-idx="' + idx + '"]');
+  var pid = parseInt(sel.value);
+  var prod = products.find(function(p) { return p.id === pid; });
+  if (prod) {
+    document.getElementById('pname-' + idx).value = prod.name;
+    document.getElementById('pprice-' + idx).value = prod.price;
+    document.getElementById('pcost-' + idx).value = prod.cost_price || 0;
+  } else {
+    document.getElementById('pname-' + idx).value = '';
+    document.getElementById('pprice-' + idx).value = '';
+    document.getElementById('pcost-' + idx).value = '';
+  }
+  recalc();
+}
+
+function onDiscountChange(idx) {
+  var sel = document.querySelector('#row-' + idx + ' select[name*="discount_type"]');
+  if (sel.value === 'none') {
+    document.getElementById('dval-' + idx).value = '';
+  }
+  recalc();
+}
+
+function recalc() {
+  var tbody = document.getElementById('itemsBody');
+  var rows = tbody.querySelectorAll('tr');
+  var subtotal = 0, totalDiscount = 0, totalCost = 0;
+  var profitClassPos = '';
+
+  rows.forEach(function(row) {
+    var idx = row.id.replace('row-', '');
+    var qty = parseFloat(row.querySelector('input[name*="quantity"]').value) || 0;
+    var price = parseFloat(row.querySelector('input[name*="price"]').value) || 0;
+    var cost = parseFloat(row.querySelector('input[name*="cost_price"]').value) || 0;
+    var discType = row.querySelector('select[name*="discount_type"]').value;
+    var discVal = parseFloat(row.querySelector('input[name*="discount_value"]').value) || 0;
+
+    var itemSub = price * qty;
+    var itemDiscount = 0;
+    if (discType === 'fixed') {
+      itemDiscount = Math.min(discVal, price) * qty;
+    } else if (discType === 'percent') {
+      itemDiscount = price * (Math.min(discVal, 100) / 100) * qty;
+    }
+    var itemFinal = itemSub - itemDiscount;
+    var itemCost = cost * qty;
+    var itemProfit = itemFinal - itemCost;
+
+    subtotal += itemSub;
+    totalDiscount += itemDiscount;
+    totalCost += itemCost;
+
+    document.getElementById('tfinal-' + idx).textContent = itemFinal > 0 ? fmt(itemFinal) : '—';
+    document.getElementById('tprofit-' + idx).textContent = fmt(itemProfit);
+    document.getElementById('tprofit-' + idx).className = itemProfit > 0 ? 'profit-positive' : (itemProfit < 0 ? 'profit-negative' : '');
+  });
+
+  var finalVal = subtotal - totalDiscount;
+  var profit = finalVal - totalCost;
+  var margin = finalVal > 0 ? (profit / finalVal) * 100 : 0;
+
+  document.getElementById('summarySubtotal').textContent = fmt(subtotal);
+  document.getElementById('summaryDiscount').textContent = fmt(totalDiscount);
+  document.getElementById('summaryFinal').textContent = fmt(finalVal);
+  document.getElementById('summaryFinal').style.color = finalVal > 0 ? '' : 'var(--red)';
+  document.getElementById('summaryCost').textContent = fmt(totalCost);
+  document.getElementById('summaryProfit').textContent = fmt(profit);
+  document.getElementById('summaryProfit').className = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+  document.getElementById('summaryProfit').style.fontSize = '1.8rem';
+  document.getElementById('summaryProfit').style.fontWeight = '700';
+  document.getElementById('summaryProfit').style.marginTop = '4px';
+  document.getElementById('summaryMargin').textContent = margin.toFixed(2).replace('.', ',') + '%';
+  document.getElementById('summaryMargin').className = margin > 0 ? 'profit-positive' : (margin < 0 ? 'profit-negative' : '');
+  document.getElementById('summaryMargin').style.fontSize = '1.8rem';
+  document.getElementById('summaryMargin').style.fontWeight = '700';
+  document.getElementById('summaryMargin').style.marginTop = '4px';
+}
+
+// Handle form submission: re-index items and warn
+document.getElementById('manualOrderForm').addEventListener('submit', function(e) {
+  var tbody = document.getElementById('itemsBody');
+  var rows = tbody.querySelectorAll('tr');
+  if (rows.length === 0) {
+    e.preventDefault();
+    alert('Adicione pelo menos um item ao pedido.');
+    return;
+  }
+  // Rename input names sequentially
+  rows.forEach(function(row, i) {
+    row.querySelectorAll('input, select').forEach(function(el) {
+      var name = el.getAttribute('name');
+      if (name) {
+        var newName = name.replace(/\[\d+\]/, '[' + i + ']');
+        el.setAttribute('name', newName);
+      }
+    });
+  });
+});
+</script>
+
+<style>
+.profit-positive { color: var(--accent); font-weight: 700; }
+.profit-negative { color: var(--red); font-weight: 700; }
+#itemsTable input[readonly] { background: var(--bg-secondary); cursor: not-allowed; }
+</style>
+
+<%- include('partials/footer') %>

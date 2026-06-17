@@ -443,28 +443,158 @@ router.post('/products/delete/:id', asyncHandler(async (req, res) => {
   }
 }));
 
+// ─── Manual Order ──────────────────────────────────────────────────────────
+
+async function getOrCreateManualUser() {
+  let user = await prepare("SELECT id, full_name FROM users WHERE email = 'manual@rytech3d.local'").get();
+  if (!user) {
+    const r = await prepare("INSERT INTO users (full_name, email, password, phone, street, number, neighborhood, city, state, zip_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run('Cliente Manual', 'manual@rytech3d.local', 'manual-order-user', '', 'Rua Manual', '0', 'Centro', 'Cidade', 'UF', '00000000');
+    let uid = r.lastInsertRowid;
+    if (!uid) { const last = await prepare('SELECT MAX(id) as id FROM users').get(); uid = last ? last.id : null; }
+    if (!uid) throw new Error('Falha ao criar usuário para pedidos manuais');
+    user = { id: uid, full_name: 'Cliente Manual' };
+  }
+  return user;
+}
+
+router.get('/orders/manual/new', asyncHandler(async (req, res) => {
+  try {
+    const products = await prepare('SELECT id, name, price, cost_price, image_url FROM products WHERE active = 1 ORDER BY name').all();
+    res.render('admin/manual-order', { products, error: null });
+  } catch (err) {
+    console.error('Erro ao carregar formulário de pedido manual:', err);
+    res.status(500).send('Erro ao carregar formulário.');
+  }
+}));
+
+router.post('/orders/manual/save', asyncHandler(async (req, res) => {
+  try {
+    const { customer_name, customer_company, customer_phone, customer_email, admin_notes, items } = req.body;
+
+    if (!customer_name || !items || !Array.isArray(items) || items.length === 0) {
+      const products = await prepare('SELECT id, name, price, cost_price, image_url FROM products WHERE active = 1 ORDER BY name').all();
+      return res.render('admin/manual-order', { products, error: 'Nome do cliente e pelo menos um item são obrigatórios.' });
+    }
+
+    const manualUser = await getOrCreateManualUser();
+    const userId = manualUser.id;
+
+    // Build notes with source marker
+    const notesPayload = `__MANUAL__|${customer_name}|${customer_company || ''}|${customer_phone || ''}|${customer_email || ''}|${admin_notes || ''}`;
+
+    // Process items
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let totalCost = 0;
+    const orderItems = [];
+
+    for (const item of items) {
+      const qty = parseInt(item.quantity) || 1;
+      const price = parseFloat(item.price) || 0;
+      const costPrice = parseFloat(item.cost_price) || 0;
+      const discType = item.discount_type || 'none';
+      const discVal = parseFloat(item.discount_value) || 0;
+
+      let finalPrice = price;
+      let itemDiscount = 0;
+      if (discType === 'fixed') {
+        itemDiscount = Math.min(discVal, price);
+        finalPrice = price - itemDiscount;
+      } else if (discType === 'percent') {
+        itemDiscount = price * (Math.min(discVal, 100) / 100);
+        finalPrice = price - itemDiscount;
+      }
+
+      const itemSubtotal = price * qty;
+      const itemFinal = finalPrice * qty;
+      const itemCost = costPrice * qty;
+      const itemDiscTotal = itemDiscount * qty;
+
+      subtotal += itemSubtotal;
+      totalDiscount += itemDiscTotal;
+      totalCost += itemCost;
+
+      // Store discount info in variations field
+      const variationsPayload = JSON.stringify({
+        __discount__: { type: discType, value: discVal, total: itemDiscTotal }
+      });
+
+      orderItems.push({
+        product_id: parseInt(item.product_id),
+        product_name: item.product_name,
+        quantity: qty,
+        price: finalPrice,
+        cost_price: costPrice,
+        variations: variationsPayload
+      });
+    }
+
+    const finalTotal = subtotal - totalDiscount;
+    const profit = finalTotal - totalCost;
+    const margin = finalTotal > 0 ? (profit / finalTotal) * 100 : 0;
+
+    // Create order
+    const result = await prepare('INSERT INTO orders (user_id, total, status, payment_method, notes) VALUES (?, ?, ?, ?, ?)')
+      .run(userId, finalTotal, 'confirmed', 'manual', notesPayload);
+    let orderId = result.lastInsertRowid;
+    if (!orderId) { const last = await prepare('SELECT MAX(id) as id FROM orders').get(); orderId = last ? last.id : null; }
+    if (!orderId) throw new Error('Falha ao criar pedido manual');
+
+    // Create order items
+    for (const oi of orderItems) {
+      await prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, price, cost_price, variations) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(orderId, oi.product_id, oi.product_name, oi.quantity, oi.price, oi.cost_price, oi.variations);
+    }
+
+    // Create revenue transaction (same pattern as automatic orders)
+    try {
+      const itemNames = orderItems.map(i => `${i.product_name} x${i.quantity}`).join(', ');
+      await prepare('INSERT INTO transactions (type, category, description, amount, order_id, date) VALUES (?, ?, ?, ?, ?, ?)')
+        .run('revenue', 'order', `Pedido Manual #${orderId}: ${itemNames}`, finalTotal, orderId, new Date().toISOString().split('T')[0]);
+    } catch (err) {
+      console.error('Erro ao criar transação de receita para pedido manual:', err.message);
+    }
+
+    res.redirect('/admin/orders/' + orderId);
+  } catch (err) {
+    console.error('Erro ao salvar pedido manual:', err);
+    const products = await prepare('SELECT id, name, price, cost_price, image_url FROM products WHERE active = 1 ORDER BY name').all();
+    res.render('admin/manual-order', { products, error: 'Erro ao salvar pedido manual. Verifique os dados.' });
+  }
+}));
+
+// ─── Existing Orders ────────────────────────────────────────────────────────
+
 router.get('/orders', asyncHandler(async (req, res) => {
   try {
     const status = req.query.status || '';
-    let orders;
+    const source = req.query.source || '';
+    const conditions = [];
+    const params = [];
+
     if (status) {
-      orders = await prepare(`
-        SELECT o.*, u.full_name as customer_name,
-          COALESCE((SELECT SUM(oi.cost_price * oi.quantity) FROM order_items oi WHERE oi.order_id = o.id), 0) as total_cost
-        FROM orders o 
-        JOIN users u ON o.user_id = u.id 
-        WHERE o.status = ? ORDER BY o.created_at DESC
-      `).all(status);
-    } else {
-      orders = await prepare(`
-        SELECT o.*, u.full_name as customer_name,
-          COALESCE((SELECT SUM(oi.cost_price * oi.quantity) FROM order_items oi WHERE oi.order_id = o.id), 0) as total_cost
-        FROM orders o 
-        JOIN users u ON o.user_id = u.id 
-        ORDER BY o.created_at DESC
-      `).all();
+      conditions.push('o.status = ?');
+      params.push(status);
     }
-    res.render('admin/orders', { orders, currentStatus: status });
+    if (source === 'manual') {
+      conditions.push("o.notes LIKE '__MANUAL__|%'");
+    } else if (source === 'site') {
+      conditions.push("(o.notes NOT LIKE '__MANUAL__|%' OR o.notes IS NULL OR o.notes = '')");
+    }
+
+    const whereClause = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const orders = await prepare(`
+      SELECT o.*, u.full_name as customer_name,
+        COALESCE((SELECT SUM(oi.cost_price * oi.quantity) FROM order_items oi WHERE oi.order_id = o.id), 0) as total_cost
+      FROM orders o 
+      JOIN users u ON o.user_id = u.id 
+      ${whereClause}
+      ORDER BY o.created_at DESC
+    `).all(...params);
+
+    res.render('admin/orders', { orders, currentStatus: status, currentSource: source });
   } catch (err) {
     console.error('Erro ao listar pedidos:', err);
     res.status(500).send('Erro ao carregar pedidos.');

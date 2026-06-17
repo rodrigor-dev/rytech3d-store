@@ -1839,6 +1839,9 @@ img { max-width: 100%; height: auto; }
 .profit-positive { color: var(--accent) !important; }
 .profit-negative { color: var(--red) !important; }
 
+.badge-site { background: rgba(0,212,170,0.12); color: var(--accent); }
+.badge-manual { background: rgba(99,102,241,0.15); color: #818cf8; }
+
 /* IMAGE PREVIEW */
 .image-preview-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
 .image-preview-item { position: relative; width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: var(--bg-secondary); flex-shrink: 0; border: 1px solid var(--border); }
