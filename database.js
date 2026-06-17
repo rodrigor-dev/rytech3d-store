@@ -245,7 +245,12 @@ const SCHEMA = isPg() ? `
     id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id INTEGER NOT NULL REFERENCES products(id),
     product_name TEXT NOT NULL, quantity INTEGER NOT NULL, price REAL NOT NULL,
-    variations TEXT DEFAULT '[]'
+    cost_price REAL DEFAULT 0, variations TEXT DEFAULT '[]'
+  );
+  CREATE TABLE IF NOT EXISTS cost_price_history (
+    id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+    cost_price REAL NOT NULL DEFAULT 0, changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    note TEXT DEFAULT ''
   );
   CREATE TABLE IF NOT EXISTS admins (
     id SERIAL PRIMARY KEY, username TEXT NOT NULL UNIQUE,
@@ -314,9 +319,15 @@ const SCHEMA = isPg() ? `
     id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL,
     product_id INTEGER NOT NULL, product_name TEXT NOT NULL,
     quantity INTEGER NOT NULL, price REAL NOT NULL,
-    variations TEXT DEFAULT '[]',
+    cost_price REAL DEFAULT 0, variations TEXT DEFAULT '[]',
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id)
+  );
+  CREATE TABLE IF NOT EXISTS cost_price_history (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
+    cost_price REAL NOT NULL DEFAULT 0, changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    note TEXT DEFAULT '',
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
   CREATE TABLE IF NOT EXISTS product_variations (
     id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
@@ -384,6 +395,8 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS video_mime TEXT DEFAULT NULL"); } catch (e) { console.log('pg migration video_mime:', e.message); }
     try { await _pool.query("ALTER TABLE products ADD COLUMN IF NOT EXISTS main_media TEXT DEFAULT 'image'"); } catch (e) { console.log('pg migration main_media:', e.message); }
     try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variations TEXT DEFAULT '[]'"); } catch (e) { console.log('pg migration order_items.variations:', e.message); }
+    try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0"); } catch (e) { console.log('pg migration order_items.cost_price:', e.message); }
+    try { await _pool.query("CREATE TABLE IF NOT EXISTS cost_price_history (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, cost_price REAL NOT NULL DEFAULT 0, changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, note TEXT DEFAULT '')"); } catch (e) { console.log('pg migration cost_price_history:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
     const initSqlJs = require('sql.js');
@@ -403,6 +416,7 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_mime TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN main_media TEXT DEFAULT 'image'"); } catch {}
     try { _sqlite.exec("ALTER TABLE order_items ADD COLUMN variations TEXT DEFAULT '[]'"); } catch {}
+    try { _sqlite.exec("ALTER TABLE order_items ADD COLUMN cost_price REAL DEFAULT 0"); } catch {}
     try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_variations (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, group_name TEXT NOT NULL, variation_name TEXT NOT NULL, price_modifier REAL DEFAULT 0, sort_order INTEGER DEFAULT 0, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
     try { _sqlite.exec("ALTER TABLE users ADD COLUMN google_id TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN cost_price REAL DEFAULT 0"); } catch {}

@@ -185,7 +185,7 @@ router.get('/products/new', asyncHandler(async (req, res) => {
 
 router.get('/products/edit/:id', asyncHandler(async (req, res) => {
   try {
-    const product = await prepare('SELECT id, name, description, price, delivery_time, category, image_url, video_url, main_media, featured, active FROM products WHERE id = ?').get(req.params.id);
+    const product = await prepare('SELECT id, name, description, price, cost_price, delivery_time, category, image_url, video_url, main_media, featured, active FROM products WHERE id = ?').get(req.params.id);
     if (!product) return res.status(404).send('Produto não encontrado');
     const extraImages = await prepare('SELECT image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;
@@ -223,7 +223,7 @@ router.post('/products/save', mixedUpload.fields([
   { name: 'video_file', maxCount: 1 }
 ]), asyncHandler(async (req, res) => {
   try {
-    const { id, name, description, price, delivery_time, category, featured, active } = req.body;
+    const { id, name, description, price, cost_price, delivery_time, category, featured, active } = req.body;
     let video_url = '';
     if (req.body.uploaded_video) {
       video_url = req.body.uploaded_video;
@@ -330,13 +330,13 @@ router.post('/products/save', mixedUpload.fields([
     const mainMedia = req.body.main_media === 'video' ? 'video' : 'image';
 
     if (id) {
-      await prepare(`UPDATE products SET name=?, description=?, price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, video_data=?, video_mime=?, main_media=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, mainMedia, featured ? 1 : 0, activeValue, parseInt(id));
+      await prepare(`UPDATE products SET name=?, description=?, price=?, cost_price=?, delivery_time=?, category=?, image_url=?, image_data=?, image_mime=?, video_url=?, video_data=?, video_mime=?, main_media=?, featured=?, active=?, updated_at=CURRENT_TIMESTAMP WHERE id=?`)
+        .run(name, description, parseFloat(price), parseFloat(cost_price || 0), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, mainMedia, featured ? 1 : 0, activeValue, parseInt(id));
       await prepare('DELETE FROM product_images WHERE product_id = ?').run(id);
       var targetId = id;
     } else {
-      const result = await prepare(`INSERT INTO products (name, description, price, delivery_time, category, image_url, image_data, image_mime, video_url, video_data, video_mime, main_media, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-        .run(name, description, parseFloat(price), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, mainMedia, featured ? 1 : 0, activeValue);
+      const result = await prepare(`INSERT INTO products (name, description, price, cost_price, delivery_time, category, image_url, image_data, image_mime, video_url, video_data, video_mime, main_media, featured, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(name, description, parseFloat(price), parseFloat(cost_price || 0), delivery_time, category || 'Geral', mainImageUrl, mainImageData || null, mainImageMime || null, video_url || '', videoData, videoMime, mainMedia, featured ? 1 : 0, activeValue);
       let productId = result.lastInsertRowid;
       if (!productId) {
         const last = await prepare('SELECT MAX(id) as id FROM products').get();
@@ -351,6 +351,11 @@ router.post('/products/save', mixedUpload.fields([
       const img = allImages[i];
       await prepare('INSERT INTO product_images (product_id, image_url, image_data, image_mime, sort_order) VALUES (?, ?, ?, ?, ?)')
         .run(targetId, img.url, img.data || null, img.mime || null, sortOrder++);
+    }
+
+    const costVal = parseFloat(cost_price || 0);
+    if (costVal > 0) {
+      await prepare('INSERT INTO cost_price_history (product_id, cost_price, note) VALUES (?, ?, ?)').run(targetId, costVal, 'Atualizado via formulário');
     }
 
     res.redirect('/admin/products');
@@ -444,13 +449,17 @@ router.get('/orders', asyncHandler(async (req, res) => {
     let orders;
     if (status) {
       orders = await prepare(`
-        SELECT o.*, u.full_name as customer_name FROM orders o 
+        SELECT o.*, u.full_name as customer_name,
+          COALESCE((SELECT SUM(oi.cost_price * oi.quantity) FROM order_items oi WHERE oi.order_id = o.id), 0) as total_cost
+        FROM orders o 
         JOIN users u ON o.user_id = u.id 
         WHERE o.status = ? ORDER BY o.created_at DESC
       `).all(status);
     } else {
       orders = await prepare(`
-        SELECT o.*, u.full_name as customer_name FROM orders o 
+        SELECT o.*, u.full_name as customer_name,
+          COALESCE((SELECT SUM(oi.cost_price * oi.quantity) FROM order_items oi WHERE oi.order_id = o.id), 0) as total_cost
+        FROM orders o 
         JOIN users u ON o.user_id = u.id 
         ORDER BY o.created_at DESC
       `).all();
@@ -670,10 +679,41 @@ router.get('/finances', asyncHandler(async (req, res) => {
     const totalOrderTransactions = transactions.filter(t => t.category === 'order' || t.type === 'cancelled').length;
     const cancelRate = totalOrderTransactions > 0 ? (cancelledCount / totalOrderTransactions * 100) : 0;
 
+    // Profit analysis
+    const profitRow = await prepare(`
+      SELECT 
+        COALESCE(SUM(oi.cost_price * oi.quantity), 0) as total_cost,
+        COALESCE(SUM(oi.price * oi.quantity), 0) as total_revenue
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.created_at >= ? AND o.created_at <= ? AND o.status != 'cancelled'
+    `).get(sDate, eDate);
+    const profitTotalRevenue = profitRow.total_revenue || 0;
+    const profitTotalCost = profitRow.total_cost || 0;
+    const profitAmount = profitTotalRevenue - profitTotalCost;
+    const profitMargin = profitTotalRevenue > 0 ? (profitAmount / profitTotalRevenue * 100) : 0;
+
+    const mostProfitable = await prepare(`
+      SELECT 
+        oi.product_id, oi.product_name,
+        SUM(oi.quantity) as total_quantity,
+        SUM(oi.price * oi.quantity) as total_revenue,
+        SUM(oi.cost_price * oi.quantity) as total_cost,
+        SUM(oi.price * oi.quantity) - SUM(oi.cost_price * oi.quantity) as total_profit
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE o.created_at >= ? AND o.created_at <= ? AND o.status != 'cancelled'
+      GROUP BY oi.product_id, oi.product_name
+      ORDER BY total_profit DESC
+      LIMIT 10
+    `).all(sDate, eDate);
+
     res.render('admin/finances', {
       transactions, startDate: sDate, endDate: eDate,
       totalRevenue, totalExpenses, totalCancelled, orderTotals,
       cancelledCount, cancelRate,
+      profitTotalRevenue, profitTotalCost, profitAmount, profitMargin,
+      mostProfitable,
       error: null, success: null
     });
   } catch (err) {

@@ -42,6 +42,63 @@
     </div>
   </div>
 
+  <h2 style="margin-top:32px">Análise de Lucro</h2>
+  <div class="finance-summary">
+    <div class="finance-card">
+      <div class="label">Receita de Pedidos</div>
+      <div class="value positive">R$ <%= profitTotalRevenue.toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card">
+      <div class="label">Custo dos Pedidos</div>
+      <div class="value negative">R$ <%= profitTotalCost.toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card">
+      <div class="label">Lucro Bruto</div>
+      <div class="value <%= profitAmount >= 0 ? 'positive' : 'negative' %>">R$ <%= profitAmount.toFixed(2).replace('.', ',') %></div>
+    </div>
+    <div class="finance-card">
+      <div class="label">Margem</div>
+      <div class="value <%= profitMargin >= 0 ? 'positive' : 'negative' %>"><%= profitMargin.toFixed(2).replace('.', ',') %>%</div>
+    </div>
+  </div>
+
+  <% if (mostProfitable && mostProfitable.length > 0) { %>
+  <div class="admin-card" style="margin-top:16px">
+    <div class="admin-card-header">
+      <h2>Produtos Mais Lucrativos</h2>
+    </div>
+    <div class="admin-card-body" style="overflow-x:auto">
+      <table class="finance-table">
+        <thead>
+          <tr>
+            <th>Produto</th>
+            <th>Qtd.</th>
+            <th>Receita</th>
+            <th>Custo</th>
+            <th>Lucro</th>
+            <th>Margem</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% mostProfitable.forEach(p => {
+            const pMargin = p.total_revenue > 0 ? (p.total_profit / p.total_revenue * 100) : 0;
+            const pClass = p.total_profit > 0 ? 'profit-positive' : (p.total_profit < 0 ? 'profit-negative' : '');
+          %>
+            <tr>
+              <td><%= p.product_name %></td>
+              <td><%= p.total_quantity %></td>
+              <td>R$ <%= p.total_revenue.toFixed(2).replace('.', ',') %></td>
+              <td>R$ <%= p.total_cost.toFixed(2).replace('.', ',') %></td>
+              <td class="<%= pClass %>">R$ <%= p.total_profit.toFixed(2).replace('.', ',') %></td>
+              <td class="<%= pClass %>"><%= pMargin.toFixed(2).replace('.', ',') %>%</td>
+            </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <% } %>
+
   <div class="finance-nav">
     <form method="GET" action="/admin/finances" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <label style="font-size:0.85rem;color:var(--text-muted)">Filtrar por período:</label>

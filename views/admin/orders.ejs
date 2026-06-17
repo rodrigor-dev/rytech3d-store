@@ -30,18 +30,29 @@
                 <th>Cliente</th>
                 <th>Itens</th>
                 <th>Total</th>
+                <th>Custo</th>
+                <th>Lucro</th>
+                <th>Margem</th>
                 <th>Status</th>
                 <th>Data</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
-              <% orders.forEach(order => { %>
+              <% orders.forEach(order => {
+                const cost = parseFloat(order.total_cost || 0);
+                const profit = order.total - cost;
+                const margin = order.total > 0 ? (profit / order.total * 100) : 0;
+                const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+              %>
                 <tr>
                   <td>#<%= order.id %></td>
                   <td><%= order.customer_name || '—' %></td>
                   <td><%= order.total_items || '—' %></td>
                   <td>R$ <%= order.total.toFixed(2).replace('.', ',') %></td>
+                  <td class="<%= profitClass %>">R$ <%= cost.toFixed(2).replace('.', ',') %></td>
+                  <td class="<%= profitClass %>">R$ <%= profit.toFixed(2).replace('.', ',') %></td>
+                  <td class="<%= profitClass %>"><%= margin.toFixed(2).replace('.', ',') %>%</td>
                   <td><span class="badge badge-<%= order.status %>"><%= order.status === 'pending' ? 'Pendente' : order.status === 'confirmed' ? 'Confirmado' : order.status === 'printing' ? 'Imprimindo' : order.status === 'shipped' ? 'Enviado' : order.status === 'delivered' ? 'Entregue' : 'Cancelado' %></span></td>
                   <td><%= new Date(order.created_at).toLocaleDateString('pt-BR') %></td>
                   <td><a href="/admin/orders/<%= order.id %>" class="btn btn-small"><i class="fas fa-eye"></i></a></td>

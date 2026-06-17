@@ -6,6 +6,12 @@
     <a href="/admin/orders" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Voltar</a>
   </div>
 
+<% 
+  const orderCost = items.reduce((sum, item) => sum + (parseFloat(item.cost_price || 0) * item.quantity), 0);
+  const orderProfit = order.total - orderCost;
+  const orderMargin = order.total > 0 ? (orderProfit / order.total * 100) : 0;
+  const profitClass = orderProfit > 0 ? 'profit-positive' : (orderProfit < 0 ? 'profit-negative' : '');
+%>
   <div class="order-detail-grid">
     <div class="admin-card">
       <div class="admin-card-header">
@@ -19,6 +25,17 @@
         <div class="detail-row"><span class="detail-label">Data</span><span><%= new Date(order.created_at).toLocaleString('pt-BR') %></span></div>
         <div class="detail-row"><span class="detail-label">Total</span><span class="detail-value">R$ <%= order.total.toFixed(2).replace('.', ',') %></span></div>
         <% if (order.notes) { %><div class="detail-row"><span class="detail-label">Observações</span><span><%= order.notes %></span></div><% } %>
+      </div>
+    </div>
+
+    <div class="admin-card">
+      <div class="admin-card-header">
+        <h2>Resumo Financeiro</h2>
+      </div>
+      <div class="admin-card-body">
+        <div class="detail-row"><span class="detail-label">Custo Total</span><span>R$ <%= orderCost.toFixed(2).replace('.', ',') %></span></div>
+        <div class="detail-row"><span class="detail-label">Lucro</span><span class="<%= profitClass %> detail-value">R$ <%= orderProfit.toFixed(2).replace('.', ',') %></span></div>
+        <div class="detail-row"><span class="detail-label">Margem</span><span class="<%= profitClass %>"><%= orderMargin.toFixed(2).replace('.', ',') %>%</span></div>
       </div>
     </div>
 
@@ -54,11 +71,17 @@
               <th>Produto</th>
               <th>Quantidade</th>
               <th>Preço Unit.</th>
+              <th>Custo Unit.</th>
+              <th>Lucro</th>
               <th>Subtotal</th>
             </tr>
           </thead>
           <tbody>
-            <% items.forEach(item => { %>
+            <% items.forEach(item => {
+              const itemCost = parseFloat(item.cost_price || 0) * item.quantity;
+              const itemProfit = (item.quantity * item.price) - itemCost;
+              const ipClass = itemProfit > 0 ? 'profit-positive' : (itemProfit < 0 ? 'profit-negative' : '');
+            %>
               <tr>
                 <td>
                 <%= item.product_name %>
@@ -71,6 +94,8 @@
               </td>
                 <td><%= item.quantity %></td>
                 <td>R$ <%= item.price.toFixed(2).replace('.', ',') %></td>
+                <td>R$ <%= (parseFloat(item.cost_price || 0)).toFixed(2).replace('.', ',') %></td>
+                <td class="<%= ipClass %>">R$ <%= itemProfit.toFixed(2).replace('.', ',') %></td>
                 <td>R$ <%= (item.quantity * item.price).toFixed(2).replace('.', ',') %></td>
               </tr>
             <% }) %>

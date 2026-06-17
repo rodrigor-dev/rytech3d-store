@@ -50,7 +50,7 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
   const orderItems = [];
 
   for (const item of items) {
-    const product = await prepare('SELECT id, name, price FROM products WHERE id = ? AND active = 1').get(item.product_id);
+    const product = await prepare('SELECT id, name, price, cost_price FROM products WHERE id = ? AND active = 1').get(item.product_id);
     if (!product) {
       return res.status(400).json({ error: `Produto "${item.product_name || item.product_id}" não encontrado.` });
     }
@@ -63,6 +63,7 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
       product_name: product.name,
       quantity: qty,
       price: product.price,
+      cost_price: product.cost_price || 0,
       variations
     });
   }
@@ -72,8 +73,8 @@ router.post('/place', authMiddleware, asyncHandler(async (req, res) => {
     const orderId = result.lastInsertRowid;
     for (const item of orderItems) {
       const variationsJson = JSON.stringify(item.variations || {});
-      await prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, price, variations) VALUES (?, ?, ?, ?, ?, ?)')
-        .run(orderId, item.product_id, item.product_name, item.quantity, item.price, variationsJson);
+      await prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, price, cost_price, variations) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(orderId, item.product_id, item.product_name, item.quantity, item.price, item.cost_price, variationsJson);
     }
     return orderId;
   });
