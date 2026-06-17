@@ -448,8 +448,8 @@ router.post('/products/delete/:id', asyncHandler(async (req, res) => {
 async function getOrCreateManualUser() {
   let user = await prepare("SELECT id, full_name FROM users WHERE email = 'manual@rytech3d.local'").get();
   if (!user) {
-    const r = await prepare("INSERT INTO users (full_name, email, password, phone, street, number, neighborhood, city, state, zip_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-      .run('Cliente Manual', 'manual@rytech3d.local', 'manual-order-user', '', 'Rua Manual', '0', 'Centro', 'Cidade', 'UF', '00000000');
+    const r = await prepare("INSERT INTO users (full_name, email, password, phone, street, number, complement, neighborhood, city, state, zip_code, cpf) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+      .run('Cliente Manual', 'manual@rytech3d.local', 'manual-order-user', '', 'Rua Manual', '0', '', 'Centro', 'Cidade', 'UF', '00000000', '');
     let uid = r.lastInsertRowid;
     if (!uid) { const last = await prepare('SELECT MAX(id) as id FROM users').get(); uid = last ? last.id : null; }
     if (!uid) throw new Error('Falha ao criar usuário para pedidos manuais');
