@@ -125,7 +125,7 @@
         <% if (product.video_url.includes('youtube') || product.video_url.includes('youtu.be')) { %>
           <iframe src="<%= product.video_url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/') %>" frameborder="0" allowfullscreen></iframe>
         <% } else { %>
-          <video controls class="product-video-player" preload="none" poster="<%= product.image_url %>">
+          <video controls class="product-video-player" autoplay muted playsinline preload="none" poster="<%= product.image_url %>">
             <source src="<%= product.video_url %>" type="<%= product.video_mime || 'video/mp4' %>">
             Seu navegador não suporta vídeo HTML5.
           </video>
