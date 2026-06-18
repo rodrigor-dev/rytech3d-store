@@ -50,42 +50,62 @@
           <h3>Nenhum administrador cadastrado</h3>
         </div>
       <% } else { %>
-        <div class="table-responsive">
-          <table class="admin-table table-cards">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Usuário</th>
-                <th>Email</th>
-                <th>Cadastro</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% admins.forEach(admin => { %>
+        <div class="desktop-only">
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td data-label="ID"><%= admin.id %></td>
-                  <td data-label="Usuário">
-                    <strong><%= admin.username %></strong>
-                    <% if (adminUser && admin.id === adminUser.id) { %>
-                      <span class="badge badge-info">Você</span>
-                    <% } %>
-                  </td>
-                  <td data-label="Email"><%= admin.email || '-' %></td>
-                  <td data-label="Cadastro"><%= new Date(admin.created_at).toLocaleDateString('pt-BR') %></td>
-                  <td data-label="Ações">
-                    <% if (admins.length > 1 && (!adminUser || admin.id !== adminUser.id)) { %>
-                      <button class="btn btn-danger btn-small" onclick="deleteAdmin(<%= admin.id %>, '<%= admin.username %>')">
-                        <i class="fas fa-trash"></i> Excluir
-                      </button>
-                    <% } else { %>
-                      <span class="text-muted">—</span>
-                    <% } %>
-                  </td>
+                  <th>ID</th>
+                  <th>Usuário</th>
+                  <th>Email</th>
+                  <th>Cadastro</th>
+                  <th>Ações</th>
                 </tr>
-              <% }) %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <% admins.forEach(admin => { %>
+                  <tr>
+                    <td data-label="ID"><%= admin.id %></td>
+                    <td data-label="Usuário">
+                      <strong><%= admin.username %></strong>
+                      <% if (adminUser && admin.id === adminUser.id) { %>
+                        <span class="badge badge-info">Você</span>
+                      <% } %>
+                    </td>
+                    <td data-label="Email"><%= admin.email || '-' %></td>
+                    <td data-label="Cadastro"><%= new Date(admin.created_at).toLocaleDateString('pt-BR') %></td>
+                    <td data-label="Ações">
+                      <% if (admins.length > 1 && (!adminUser || admin.id !== adminUser.id)) { %>
+                        <button class="btn btn-danger btn-small" onclick="deleteAdmin(<%= admin.id %>, '<%= admin.username %>')">
+                          <i class="fas fa-trash"></i> Excluir
+                        </button>
+                      <% } else { %>
+                        <span class="text-muted">—</span>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="mobile-only">
+          <% admins.forEach(admin => { %>
+            <div class="admin-item-card">
+              <div class="admin-item-card-info">
+                <div class="admin-item-card-name"><%= admin.username %></div>
+                <div class="admin-item-card-email"><%= admin.email || '-' %></div>
+                <div class="admin-item-card-date">Cadastro: <%= new Date(admin.created_at).toLocaleDateString('pt-BR') %></div>
+              </div>
+              <div>
+                <% if (admins.length > 1 && (!adminUser || admin.id !== adminUser.id)) { %>
+                  <button class="btn btn-danger btn-small" onclick="deleteAdmin(<%= admin.id %>, '<%= admin.username %>')">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                <% } %>
+              </div>
+            </div>
+          <% }) %>
         </div>
       <% } %>
     </div>

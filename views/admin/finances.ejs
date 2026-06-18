@@ -67,34 +67,55 @@
     <div class="admin-card-header">
       <h2>Produtos Mais Lucrativos</h2>
     </div>
-    <div class="admin-card-body" style="overflow-x:auto">
-      <table class="finance-table table-cards">
-        <thead>
-          <tr>
-            <th>Produto</th>
-            <th>Qtd.</th>
-            <th>Receita</th>
-            <th>Custo</th>
-            <th>Lucro</th>
-            <th>Margem</th>
-          </tr>
-        </thead>
-        <tbody>
-          <% mostProfitable.forEach(p => {
-            const pMargin = p.total_revenue > 0 ? (p.total_profit / p.total_revenue * 100) : 0;
-            const pClass = p.total_profit > 0 ? 'profit-positive' : (p.total_profit < 0 ? 'profit-negative' : '');
-          %>
+    <div class="admin-card-body">
+      <div class="desktop-only">
+        <table class="finance-table">
+          <thead>
             <tr>
-              <td data-label="Produto"><%= p.product_name %></td>
-              <td data-label="Qtd."><%= p.total_quantity %></td>
-              <td data-label="Receita">R$ <%= p.total_revenue.toFixed(2).replace('.', ',') %></td>
-              <td data-label="Custo">R$ <%= p.total_cost.toFixed(2).replace('.', ',') %></td>
-              <td data-label="Lucro" class="<%= pClass %>">R$ <%= p.total_profit.toFixed(2).replace('.', ',') %></td>
-              <td data-label="Margem" class="<%= pClass %>"><%= pMargin.toFixed(2).replace('.', ',') %>%</td>
+              <th>Produto</th>
+              <th>Qtd.</th>
+              <th>Receita</th>
+              <th>Custo</th>
+              <th>Lucro</th>
+              <th>Margem</th>
             </tr>
-          <% }) %>
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            <% mostProfitable.forEach(p => {
+              const pMargin = p.total_revenue > 0 ? (p.total_profit / p.total_revenue * 100) : 0;
+              const pClass = p.total_profit > 0 ? 'profit-positive' : (p.total_profit < 0 ? 'profit-negative' : '');
+            %>
+              <tr>
+                <td data-label="Produto"><%= p.product_name %></td>
+                <td data-label="Qtd."><%= p.total_quantity %></td>
+                <td data-label="Receita">R$ <%= p.total_revenue.toFixed(2).replace('.', ',') %></td>
+                <td data-label="Custo">R$ <%= p.total_cost.toFixed(2).replace('.', ',') %></td>
+                <td data-label="Lucro" class="<%= pClass %>">R$ <%= p.total_profit.toFixed(2).replace('.', ',') %></td>
+                <td data-label="Margem" class="<%= pClass %>"><%= pMargin.toFixed(2).replace('.', ',') %>%</td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <div class="mobile-only">
+        <% mostProfitable.forEach(p => {
+          const pMargin = p.total_revenue > 0 ? (p.total_profit / p.total_revenue * 100) : 0;
+          const pClass = p.total_profit > 0 ? 'profit-positive' : (p.total_profit < 0 ? 'profit-negative' : '');
+        %>
+          <div class="order-card">
+            <div class="order-card-body">
+              <div class="order-card-header"><span class="order-client"><%= p.product_name %></span></div>
+              <div class="order-card-info">
+                <div class="order-card-row"><span class="order-card-label">Quantidade</span><span class="order-card-value"><%= p.total_quantity %></span></div>
+                <div class="order-card-row"><span class="order-card-label">Receita</span><span class="order-card-value">R$ <%= p.total_revenue.toFixed(2).replace('.', ',') %></span></div>
+                <div class="order-card-row"><span class="order-card-label">Custo</span><span class="order-card-value">R$ <%= p.total_cost.toFixed(2).replace('.', ',') %></span></div>
+                <div class="order-card-row"><span class="order-card-label">Lucro</span><span class="order-card-value <%= pClass %>">R$ <%= p.total_profit.toFixed(2).replace('.', ',') %></span></div>
+                <div class="order-card-row"><span class="order-card-label">Margem</span><span class="order-card-value <%= pClass %>"><%= pMargin.toFixed(2).replace('.', ',') %>%</span></div>
+              </div>
+            </div>
+          </div>
+        <% }) %>
+      </div>
     </div>
   </div>
   <% } %>
@@ -123,7 +144,7 @@
         <% } %>
       </span>
     </div>
-    <div class="admin-card-body" style="overflow-x:auto">
+    <div class="admin-card-body">
       <% if (transactions.length === 0) { %>
         <div class="empty-state" style="padding:40px 0">
           <i class="fas fa-coins"></i>
@@ -131,35 +152,63 @@
           <p>Não há registros no período selecionado. Clique em "Nova Transação" para adicionar.</p>
         </div>
       <% } else { %>
-        <table class="finance-table table-cards">
-          <thead>
-            <tr>
-              <th>Data</th>
-              <th>Tipo</th>
-              <th>Categoria</th>
-              <th>Descrição</th>
-              <th>Valor</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
-            <% transactions.forEach(t => { %>
+        <div class="desktop-only">
+          <table class="finance-table">
+            <thead>
               <tr>
-                <td data-label="Data"><%= new Date(t.date).toLocaleDateString('pt-BR') %></td>
-                <td data-label="Tipo"><span class="tag <%= t.type === 'revenue' ? 'tag-revenue' : t.type === 'cancelled' ? 'tag-cancelled' : 'tag-expense' %>"><%= t.type === 'revenue' ? 'Receita' : t.type === 'cancelled' ? 'Cancelado' : 'Despesa' %></span></td>
-                <td data-label="Categoria"><%= t.category || '-' %></td>
-                <td data-label="Descrição"><%= t.description || '-' %></td>
-                <td data-label="Valor" style="font-weight:600;color:<%= t.type === 'revenue' ? 'var(--accent)' : t.type === 'cancelled' ? '#ff9f1c' : 'var(--red)' %>">R$ <%= t.amount.toFixed(2).replace('.', ',') %></td>
-                <td data-label="Ações">
-                  <button class="btn-icon" onclick='openEditModal(<%= JSON.stringify(t) %>)' title="Editar"><i class="fas fa-edit"></i></button>
-                  <form method="POST" action="/admin/finances/delete/<%= t.id %>" style="display:inline" onsubmit="return confirm('Excluir esta transação?')">
-                    <button class="btn-icon" style="border-color:transparent" title="Excluir"><i class="fas fa-trash" style="color:var(--red)"></i></button>
-                  </form>
-                </td>
+                <th>Data</th>
+                <th>Tipo</th>
+                <th>Categoria</th>
+                <th>Descrição</th>
+                <th>Valor</th>
+                <th>Ações</th>
               </tr>
-            <% }) %>
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              <% transactions.forEach(t => { %>
+                <tr>
+                  <td data-label="Data"><%= new Date(t.date).toLocaleDateString('pt-BR') %></td>
+                  <td data-label="Tipo"><span class="tag <%= t.type === 'revenue' ? 'tag-revenue' : t.type === 'cancelled' ? 'tag-cancelled' : 'tag-expense' %>"><%= t.type === 'revenue' ? 'Receita' : t.type === 'cancelled' ? 'Cancelado' : 'Despesa' %></span></td>
+                  <td data-label="Categoria"><%= t.category || '-' %></td>
+                  <td data-label="Descrição"><%= t.description || '-' %></td>
+                  <td data-label="Valor" style="font-weight:600;color:<%= t.type === 'revenue' ? 'var(--accent)' : t.type === 'cancelled' ? '#ff9f1c' : 'var(--red)' %>">R$ <%= t.amount.toFixed(2).replace('.', ',') %></td>
+                  <td data-label="Ações">
+                    <button class="btn-icon" onclick='openEditModal(<%= JSON.stringify(t) %>)' title="Editar"><i class="fas fa-edit"></i></button>
+                    <form method="POST" action="/admin/finances/delete/<%= t.id %>" style="display:inline" onsubmit="return confirm('Excluir esta transação?')">
+                      <button class="btn-icon" style="border-color:transparent" title="Excluir"><i class="fas fa-trash" style="color:var(--red)"></i></button>
+                    </form>
+                  </td>
+                </tr>
+              <% }) %>
+            </tbody>
+          </table>
+        </div>
+        <div class="mobile-only">
+          <% transactions.forEach(t => { %>
+            <div class="order-card">
+              <div class="order-card-body">
+                <div class="order-card-header">
+                  <span><%= new Date(t.date).toLocaleDateString('pt-BR') %></span>
+                  <span class="tag <%= t.type === 'revenue' ? 'tag-revenue' : t.type === 'cancelled' ? 'tag-cancelled' : 'tag-expense' %>"><%= t.type === 'revenue' ? 'Receita' : t.type === 'cancelled' ? 'Cancelado' : 'Despesa' %></span>
+                </div>
+                <div class="order-card-info">
+                  <div class="order-card-row"><span class="order-card-label">Categoria</span><span class="order-card-value"><%= t.category || '-' %></span></div>
+                  <div class="order-card-row"><span class="order-card-label">Descrição</span><span class="order-card-value"><%= t.description || '-' %></span></div>
+                  <div class="order-card-row">
+                    <span class="order-card-label">Valor</span>
+                    <span class="order-card-value" style="color:<%= t.type === 'revenue' ? 'var(--accent)' : t.type === 'cancelled' ? '#ff9f1c' : 'var(--red)' %>">R$ <%= t.amount.toFixed(2).replace('.', ',') %></span>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                  <button class="btn btn-small btn-outline" onclick='openEditModal(<%= JSON.stringify(t) %>)' style="flex:1;min-height:40px"><i class="fas fa-edit"></i> Editar</button>
+                  <form method="POST" action="/admin/finances/delete/<%= t.id %>" style="flex:1" onsubmit="return confirm('Excluir esta transação?')">
+                    <button class="btn btn-small btn-danger" style="width:100%;min-height:40px"><i class="fas fa-trash"></i> Excluir</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          <% }) %>
+        </div>
       <% } %>
     </div>
   </div>

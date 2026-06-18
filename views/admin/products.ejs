@@ -15,44 +15,65 @@
           <a href="/admin/products/new" class="btn btn-primary">Cadastrar Primeiro Produto</a>
         </div>
       <% } else { %>
-        <div class="table-responsive">
-          <table class="admin-table table-cards">
-            <thead>
-              <tr>
-                <th class="col-img">Imagem</th>
-                <th class="col-name">Nome</th>
-                <th class="col-cat">Categoria</th>
-                <th class="col-price">Preço</th>
-                <th class="col-delivery">Prazo</th>
-                <th class="col-featured">Destaque</th>
-                <th class="col-active">Ativo</th>
-                <th class="col-actions">Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% products.forEach(product => { %>
-                <tr class="product-row" data-href="/admin/products/edit/<%= product.id %>">
-                  <td data-label="Imagem" class="col-img"><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
-                  <td data-label="Nome" class="col-name"><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
-                  <td data-label="Categoria" class="col-cat"><%= product.category %></td>
-                  <td data-label="Preço" class="col-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
-                  <td data-label="Prazo" class="col-delivery"><%= product.delivery_time %></td>
-                  <td data-label="Destaque" class="col-featured"><%= product.featured ? '⭐' : '-' %></td>
-                  <td data-label="Ativo" class="col-active">
-                    <button class="toggle-active-btn" data-id="<%= product.id %>" data-active="<%= product.active %>">
-                      <%= product.active ? '✅' : '❌' %>
-                    </button>
-                  </td>
-                  <td data-label="Ações" class="col-actions actions-cell">
-                    <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i></a>
-                    <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
-                      <button type="submit" class="btn btn-small btn-danger"><i class="fas fa-trash"></i></button>
-                    </form>
-                  </td>
+        <div class="desktop-only">
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
+                <tr>
+                  <th class="col-img">Imagem</th>
+                  <th class="col-name">Nome</th>
+                  <th class="col-cat">Categoria</th>
+                  <th class="col-price">Preço</th>
+                  <th class="col-delivery">Prazo</th>
+                  <th class="col-featured">Destaque</th>
+                  <th class="col-active">Ativo</th>
+                  <th class="col-actions">Ações</th>
                 </tr>
-              <% }) %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <% products.forEach(product => { %>
+                  <tr class="product-row" data-href="/admin/products/edit/<%= product.id %>">
+                    <td data-label="Imagem" class="col-img"><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
+                    <td data-label="Nome" class="col-name"><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
+                    <td data-label="Categoria" class="col-cat"><%= product.category %></td>
+                    <td data-label="Preço" class="col-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
+                    <td data-label="Prazo" class="col-delivery"><%= product.delivery_time %></td>
+                    <td data-label="Destaque" class="col-featured"><%= product.featured ? '⭐' : '-' %></td>
+                    <td data-label="Ativo" class="col-active">
+                      <button class="toggle-active-btn" data-id="<%= product.id %>" data-active="<%= product.active %>">
+                        <%= product.active ? '✅' : '❌' %>
+                      </button>
+                    </td>
+                    <td data-label="Ações" class="col-actions actions-cell">
+                      <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i></a>
+                      <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
+                        <button type="submit" class="btn btn-small btn-danger"><i class="fas fa-trash"></i></button>
+                      </form>
+                    </td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="mobile-only">
+          <% products.forEach(product => { %>
+            <div class="product-card" data-href="/admin/products/edit/<%= product.id %>">
+              <img src="<%= product.image_url %>" alt="" class="product-card-thumb" onerror="this.src='/uploads/products/default.svg'">
+              <div class="product-card-info">
+                <div class="product-card-name"><%= product.name %></div>
+                <div class="product-card-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></div>
+                <div class="product-card-cost">Custo: R$ <%= (product.cost_price || 0).toFixed(2).replace('.', ',') %></div>
+                <div class="product-card-status"><button class="toggle-active-btn" data-id="<%= product.id %>" data-active="<%= product.active %>" style="background:none;border:none;cursor:pointer;padding:0;font-size:0.8rem"><%= product.active ? '✅ Ativo' : '❌ Inativo' %></button></div>
+                <div class="product-card-actions">
+                  <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i> Editar</a>
+                  <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
+                    <button type="submit" class="btn btn-small btn-danger"><i class="fas fa-trash"></i></button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          <% }) %>
         </div>
       <% } %>
     </div>
@@ -67,15 +88,23 @@ document.querySelectorAll('.product-row').forEach(row => {
   });
 });
 
+document.querySelectorAll('.product-card').forEach(card => {
+  card.addEventListener('click', function(e) {
+    if (e.target.closest('.toggle-active-btn') || e.target.closest('.product-card-actions') || e.target.closest('a')) return;
+    window.location = this.dataset.href;
+  });
+});
+
 document.querySelectorAll('.toggle-active-btn').forEach(btn => {
-  btn.addEventListener('click', async function() {
+  btn.addEventListener('click', async function(e) {
+    e.stopPropagation();
     const id = this.dataset.id;
     try {
       const res = await fetch('/admin/products/toggle-active/' + id, { method: 'POST' });
       const data = await res.json();
       if (data.success) {
         this.dataset.active = data.active;
-        this.innerHTML = data.active ? '✅' : '❌';
+        this.innerHTML = data.active ? '✅ Ativo' : '❌ Inativo';
       }
     } catch (err) {
       alert('Erro ao alterar status');
@@ -89,13 +118,6 @@ document.querySelectorAll('.toggle-active-btn').forEach(btn => {
 .product-row:hover { background: rgba(0,212,170,0.03); }
 .product-name-link { color: var(--accent); font-weight: 500; text-decoration: none; }
 .product-name-link:hover { text-decoration: underline; }
-
-@media (max-width: 768px) {
-  .col-img, .col-delivery, .col-featured { display: none; }
-}
-@media (max-width: 480px) {
-  .col-cat { display: none; }
-}
 </style>
 
 <%- include('partials/footer') %>

@@ -2088,200 +2088,216 @@ img { max-width: 100%; height: auto; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
 
 /* ============================================================
-   ADMIN MOBILE OPTIMIZATION
+   ADMIN MOBILE-FIRST (redesign completo)
    ============================================================ */
 
-/* Sidebar mobile improvements */
-@media (max-width: 968px) {
+/* Toggle visibility helpers */
+@media (min-width: 769px) {
+  .mobile-only { display: none !important; }
+}
+@media (max-width: 768px) {
+  .desktop-only { display: none !important; }
+}
+
+/* Sidebar - redesigned for mobile */
+@media (max-width: 768px) {
   .sidebar-toggle {
-    top: 10px; left: 10px;
-    width: 40px; height: 40px;
-    z-index: 201;
-    border-radius: 10px;
-    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+    display: flex; top: 10px; left: 10px;
+    width: 44px; height: 44px;
+    z-index: 201; border-radius: 12px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.3);
   }
   .sidebar-toggle span { width: 20px; }
   .admin-sidebar {
-    width: 260px;
-    left: -280px;
-    transition: left 0.25s ease;
+    width: 80vw; max-width: 320px;
+    left: -90vw;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     z-index: 200;
   }
   .admin-sidebar.open { left: 0; }
-  .sidebar-overlay.active { display: block; z-index: 199; }
-  .admin-main { margin-left: 0; padding: 60px 14px 20px; }
-  .sidebar-link { padding: 12px 14px; font-size: 0.95rem; min-height: 44px; }
-  .admin-card-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  .admin-card-body textarea, .admin-card-body select { min-height: 44px; font-size: 0.9rem; }
-  .sidebar-link i { font-size: 1.1rem; width: 22px; }
-  .sidebar-user { padding: 14px 12px; }
-  .admin-content h1 { font-size: 1.4rem; }
+  .sidebar-overlay.active { display: block; z-index: 199; background: rgba(0,0,0,0.6); }
+  .sidebar-link {
+    padding: 14px 16px; font-size: 1rem;
+    min-height: 48px; border-radius: 10px;
+  }
+  .sidebar-link i { font-size: 1.2rem; width: 24px; }
+  .sidebar-user { padding: 16px 14px; }
+  .admin-main { margin-left: 0; padding: 64px 16px 24px; }
+  .admin-content h1 { font-size: 1.5rem; margin-bottom: 20px; }
 }
 
-/* Mobile < 640px: cards instead of tables */
-@media (max-width: 640px) {
-  /* General spacing */
-  .admin-content { padding: 10px; }
-  .admin-content h1 { font-size: 1.2rem; margin-bottom: 14px; }
-  .admin-header { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
-  .admin-header .btn { width: 100%; justify-content: center; min-height: 44px; }
+/* Tablet landscape: show sidebar as before */
+@media (min-width: 769px) and (max-width: 968px) {
+  .admin-sidebar { width: 240px; left: 0; }
+  .sidebar-toggle { display: none; }
+  .admin-main { margin-left: 240px; padding: 24px; }
+}
 
-  /* Stats grid */
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .stat-card { padding: 14px; gap: 12px; border-radius: 10px; }
-  .stat-icon { width: 40px; height: 40px; font-size: 1rem; border-radius: 10px; }
-  .stat-value { font-size: 1.2rem; }
-  .stat-large { font-size: 1.4rem; }
-  .stat-label { font-size: 0.7rem; }
-  .stat-card-wide { grid-column: 1 / -1; }
+/* ===== MOBILE ≤ 768px ===== */
+@media (max-width: 768px) {
+  /* Layout & spacing */
+  .admin-content { padding: 0; }
+  .admin-card { border-radius: 12px; margin-bottom: 16px; }
+  .admin-card-header { padding: 16px; }
+  .admin-card-header h2 { font-size: 1rem; }
+  .admin-card-body { padding: 16px; }
 
-  /* Admin cards */
-  .admin-card { border-radius: 10px; margin-bottom: 14px; }
-  .admin-card-header { padding: 12px 14px; }
-  .admin-card-header h2 { font-size: 0.9rem; }
-  .admin-card-body { padding: 12px 14px; }
+  .admin-header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 20px; }
+  .admin-header .btn { width: 100%; justify-content: center; min-height: 48px; }
 
   /* Filters */
-  .admin-filters { gap: 6px; margin-bottom: 14px; }
-  .admin-filters .filter-btn { padding: 8px 14px; font-size: 0.8rem; min-height: 38px; }
+  .admin-filters { gap: 8px; margin-bottom: 16px; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 4px; }
+  .admin-filters .filter-btn { padding: 10px 16px; font-size: 0.85rem; min-height: 40px; white-space: nowrap; }
 
-  /* Table → Card conversion (requires .table-cards class + data-label on each td) */
-  .admin-table.table-cards, .finance-table.table-cards,
-  .admin-table.table-cards tbody, .finance-table.table-cards tbody,
-  .admin-table.table-cards tr, .finance-table.table-cards tr,
-  .admin-table.table-cards td, .finance-table.table-cards td {
-    display: block;
-  }
-  .admin-table.table-cards thead, .finance-table.table-cards thead { display: none; }
-  .admin-table.table-cards tbody tr, .finance-table.table-cards tbody tr {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    margin-bottom: 12px;
-    padding: 0;
+  /* Stats grid */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat-card { padding: 16px; gap: 14px; border-radius: 12px; }
+  .stat-icon { width: 44px; height: 44px; font-size: 1.1rem; border-radius: 12px; }
+  .stat-value { font-size: 1.3rem; }
+  .stat-large { font-size: 1.5rem; }
+  .stat-label { font-size: 0.75rem; }
+  .stat-card-wide { grid-column: 1 / -1; }
+
+  /* ===== ORDER CARDS ===== */
+  .order-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+  .order-card-body { padding: 16px; }
+  .order-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
+  .order-client { font-size: 1.05rem; font-weight: 600; color: var(--text-primary); }
+  .order-card-info { display: flex; flex-direction: column; gap: 8px; }
+  .order-card-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.9rem; }
+  .order-card-label { color: var(--text-muted); font-size: 0.8rem; }
+  .order-card-value { font-weight: 600; font-size: 0.95rem; }
+  .order-card-footer {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 16px; border-top: 1px solid var(--border);
     background: var(--bg-secondary);
-    overflow: hidden;
   }
-  .admin-table.table-cards tbody tr:hover td,
-  .finance-table.table-cards tbody tr:hover td { background: transparent; }
-  .admin-table.table-cards tbody td, .finance-table.table-cards tbody td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    font-size: 0.85rem;
-    gap: 8px;
-  }
-  .admin-table.table-cards tbody td:last-child,
-  .finance-table.table-cards tbody td:last-child { border-bottom: none; }
-  .admin-table.table-cards tbody td::before,
-  .finance-table.table-cards tbody td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    color: var(--text-muted);
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.3px;
-    flex-shrink: 0;
-  }
-  .admin-table.table-cards tbody td:empty { display: none; }
-  .table-responsive { overflow-x: visible; }
+  .order-date { font-size: 0.8rem; color: var(--text-muted); }
+  .order-card-footer .btn { min-height: 40px; padding: 8px 20px; font-size: 0.85rem; }
 
-  /* Buttons */
-  .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
-  .btn-small, .btn-sm { min-height: 38px; padding: 6px 14px; font-size: 0.8rem; }
-  .admin-card-body .btn.btn-outline { width: 100%; justify-content: center; min-height: 44px; }
+  /* ===== PRODUCT CARDS ===== */
+  .product-card {
+    display: flex; gap: 14px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 12px; padding: 14px;
+    cursor: pointer; transition: transform 0.15s;
+  }
+  .product-card:active { transform: scale(0.97); }
+  .product-card-thumb {
+    width: 72px; height: 72px; border-radius: 10px;
+    object-fit: cover; flex-shrink: 0;
+    background: var(--bg-secondary);
+  }
+  .product-card-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+  .product-card-name {
+    font-size: 0.95rem; font-weight: 600;
+    color: var(--text-primary);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .product-card-price { font-size: 1.05rem; font-weight: 700; color: var(--accent); }
+  .product-card-cost { font-size: 0.8rem; color: var(--text-muted); }
+  .product-card-status { font-size: 0.8rem; }
+  .product-card-actions { display: flex; gap: 8px; margin-top: 6px; }
 
-  /* Forms */
-  .form-row { flex-direction: column; }
+  /* ===== CUSTOMER CARDS ===== */
+  .customer-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; padding: 16px; }
+  .customer-card-name { font-size: 1.05rem; font-weight: 600; margin-bottom: 10px; }
+  .customer-card-detail { font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
+  .customer-card-detail i { width: 16px; color: var(--text-muted); font-size: 0.8rem; }
+
+  /* ===== ADMIN CARDS (admins list) ===== */
+  .admin-item-card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; margin-bottom: 12px; padding: 16px;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .admin-item-card-info { display: flex; flex-direction: column; gap: 4px; }
+  .admin-item-card-name { font-size: 1rem; font-weight: 600; }
+  .admin-item-card-email { font-size: 0.85rem; color: var(--text-muted); }
+  .admin-item-card-date { font-size: 0.8rem; color: var(--text-muted); }
+
+  /* ===== FINANCE ===== */
+  .finance-summary { grid-template-columns: 1fr; gap: 12px; }
+  .finance-card { padding: 16px; border-radius: 12px; }
+  .finance-card .label { font-size: 0.8rem; margin-bottom: 4px; }
+  .finance-card .value { font-size: 1.5rem; }
+  .finance-nav { flex-direction: column; align-items: stretch; gap: 12px; }
+  .finance-nav form { flex-direction: column; align-items: stretch; gap: 8px; }
+  .finance-nav select, .finance-nav input { width: 100%; min-height: 48px; }
+  .finance-nav .btn { min-height: 48px; width: 100%; justify-content: center; }
+
+  /* ===== BUTTONS ===== */
+  .btn { min-height: 48px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.95rem; }
+  .btn-small, .btn-sm { min-height: 40px; padding: 8px 16px; font-size: 0.85rem; }
+  .admin-card-body .btn.btn-outline { width: 100%; justify-content: center; min-height: 48px; }
+
+  /* ===== FORMS ===== */
+  .form-row { flex-direction: column; gap: 12px; }
   .form-group { width: 100%; }
   .form-control,
   .admin-card-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
-  .admin-card-body textarea,
-  .admin-card-body select {
-    font-size: 0.95rem; min-height: 44px; padding: 10px 14px;
+  .admin-card-body textarea, .admin-card-body select {
+    font-size: 1rem; min-height: 48px; padding: 12px 14px;
   }
-  .form-group label { font-size: 0.85rem; margin-bottom: 4px; display: block; }
-  .form-actions { flex-direction: column; gap: 10px; }
+  .form-group label { font-size: 0.9rem; margin-bottom: 6px; display: block; }
+  .form-actions { flex-direction: column; gap: 12px; }
   .form-actions .btn { width: 100%; min-height: 48px; justify-content: center; }
   .form-group-sm { max-width: 100%; }
 
   /* Status form */
-  .status-form .form-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .status-form .form-row { flex-direction: column; align-items: stretch; gap: 12px; }
   .status-form select { width: 100%; min-height: 48px; }
   .status-form button { width: 100%; min-height: 48px; }
 
   /* Order detail */
   .order-detail-grid { gap: 12px; }
-  .detail-row { font-size: 0.85rem; padding: 10px 0; }
-  .detail-label { font-size: 0.75rem; min-width: 80px; }
+  .detail-row { font-size: 0.9rem; padding: 12px 0; }
+  .detail-label { font-size: 0.8rem; min-width: 90px; }
   .detail-actions { margin-top: 12px; }
   .detail-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
 
-  /* Search bar (admin customers) */
-  .admin-card-body .search-bar { flex-wrap: wrap; }
-  .admin-card-body .search-bar input { min-width: 0; flex: 1; width: 100%; }
-  .admin-card-body .search-bar button { min-height: 40px; }
-
-  /* Finance summary */
-  .finance-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
-  .finance-card { padding: 14px; border-radius: 10px; }
-  .finance-card .label { font-size: 0.7rem; }
-  .finance-card .value { font-size: 1.3rem; }
-
-  /* Finance nav */
-  .finance-nav { flex-direction: column; align-items: stretch; gap: 8px; }
-  .finance-nav select, .finance-nav input { width: 100%; min-height: 44px; font-size: 0.9rem; }
-  .finance-nav .btn { min-height: 44px; }
+  /* Search bar */
+  .admin-card-body .search-bar { flex-wrap: wrap; gap: 8px; }
+  .admin-card-body .search-bar input { min-width: 0; flex: 1; width: 100%; min-height: 44px; }
+  .admin-card-body .search-bar button { min-height: 44px; }
 
   /* Modals */
-  .modal-box { padding: 20px; width: 95%; max-height: 85vh; overflow-y: auto; }
-  .modal-actions { flex-direction: column; }
-  .modal-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
-  .modal-box h2 { font-size: 1.1rem; }
-  .modal-box .form-group { margin-bottom: 14px; }
+  .modal-box { padding: 24px; width: 92%; max-height: 80vh; overflow-y: auto; }
+  .modal-actions { flex-direction: column; gap: 10px; }
+  .modal-actions .btn { width: 100%; justify-content: center; min-height: 48px; }
+  .modal-box h3 { font-size: 1.15rem; }
+  .modal-box .form-group { margin-bottom: 16px; }
 
   /* Image previews */
-  .image-preview-grid { gap: 8px; }
-  .image-preview-item { width: 80px; height: 80px; border-radius: 6px; }
-  .current-image img { max-height: 120px; }
+  .image-preview-grid { gap: 10px; }
+  .image-preview-item { width: 90px; height: 90px; border-radius: 8px; }
+  .current-image img { max-height: 150px; }
+  .video-upload-area { flex-direction: column; align-items: flex-start; }
 
   /* Product form */
   .variation-row { flex-direction: column; align-items: stretch; }
   .variation-row .form-control { width: 100% !important; min-width: 0 !important; }
 
-  /* Dashboard */
-  .admin-content h1 { font-size: 1.2rem; }
-
-  /* Product list specific */
-  .products-table-card tbody td[data-label] { justify-content: space-between; }
-  .col-img { display: none; }
-
-  /* Admins page */
-  .admin-card-body .btn-danger { min-height: 40px; }
-
-  /* Order list specific - show key info only */
-  .admin-table tbody td:nth-child(1) { font-weight: 700; }
-  
   /* Toast */
-  .toast { bottom: 20px; right: 16px; left: 16px; text-align: center; font-size: 0.85rem; }
+  .toast { bottom: 24px; right: 16px; left: 16px; text-align: center; font-size: 0.9rem; padding: 14px; }
 }
 
-/* Small phones < 420px */
-@media (max-width: 420px) {
-  .admin-content { padding: 8px; }
-  .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .stat-card { padding: 10px; gap: 8px; }
-  .stat-icon { width: 34px; height: 34px; font-size: 0.85rem; }
-  .stat-value { font-size: 1rem; }
-  .stat-large { font-size: 1.2rem; }
-  .admin-table tbody td { padding: 8px 10px; font-size: 0.8rem; }
-  .admin-card-body { padding: 8px 10px; }
-  .admin-card-header { padding: 10px 12px; }
-  .finance-summary { grid-template-columns: 1fr 1fr; gap: 6px; }
-  .finance-card { padding: 10px; }
-  .finance-card .value { font-size: 1.1rem; }
-  .image-preview-item { width: 70px; height: 70px; }
-  .sidebar-toggle { top: 6px; left: 6px; width: 36px; height: 36px; }
-  .admin-main { padding: 52px 8px 14px; }
+/* ===== SMALL PHONES ≤ 400px ===== */
+@media (max-width: 400px) {
+  .admin-main { padding: 60px 12px 20px; }
+  .admin-card-body { padding: 14px; }
+  .admin-card-header { padding: 14px; }
+  .order-card-body { padding: 14px; }
+  .order-card-footer { padding: 10px 14px; }
+  .product-card { padding: 12px; gap: 10px; }
+  .product-card-thumb { width: 64px; height: 64px; }
+  .finance-card { padding: 14px; }
+  .finance-card .value { font-size: 1.3rem; }
+  .stat-card { padding: 14px; }
+  .stat-icon { width: 38px; height: 38px; font-size: 1rem; }
+  .sidebar-toggle { top: 8px; left: 8px; width: 40px; height: 40px; }
+  .btn { min-height: 44px; }
+  .product-card-name { font-size: 0.85rem; }
+  .customer-card { padding: 14px; }
+  .admin-item-card { padding: 14px; }
 }

@@ -30,50 +30,88 @@
           <h3>Nenhum pedido encontrado</h3>
         </div>
       <% } else { %>
-        <div class="table-responsive">
-          <table class="admin-table table-cards">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Origem</th>
-                <th>Cliente</th>
-                <th>Itens</th>
-                <th>Total</th>
-                <th>Custo</th>
-                <th>Lucro</th>
-                <th>Margem</th>
-                <th>Status</th>
-                <th>Data</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              <% orders.forEach(order => {
-                const isManual = order.notes && order.notes.startsWith('__MANUAL__|');
-                const parts = isManual ? order.notes.split('|') : [];
-                const realName = isManual && parts.length > 1 ? parts[1] : null;
-                const displayName = realName || order.customer_name || '—';
-                const cost = parseFloat(order.total_cost || 0);
-                const profit = order.total - cost;
-                const margin = order.total > 0 ? (profit / order.total * 100) : 0;
-                const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
-              %>
+        <div class="desktop-only">
+          <div class="table-responsive">
+            <table class="admin-table">
+              <thead>
                 <tr>
-                  <td data-label="#">#<%= order.id %></td>
-                  <td data-label="Origem"><span class="badge badge-<%= isManual ? 'manual' : 'site' %>" style="font-size:0.75rem"><%= isManual ? 'Manual' : 'Site' %></span></td>
-                  <td data-label="Cliente"><%= displayName %></td>
-                  <td data-label="Itens"><%= order.total_items || '—' %></td>
-                  <td data-label="Total">R$ <%= order.total.toFixed(2).replace('.', ',') %></td>
-                  <td data-label="Custo" class="<%= profitClass %>">R$ <%= cost.toFixed(2).replace('.', ',') %></td>
-                  <td data-label="Lucro" class="<%= profitClass %>">R$ <%= profit.toFixed(2).replace('.', ',') %></td>
-                  <td data-label="Margem" class="<%= profitClass %>"><%= margin.toFixed(2).replace('.', ',') %>%</td>
-                  <td data-label="Status"><span class="badge badge-<%= order.status %>"><%= order.status === 'pending' ? 'Pendente' : order.status === 'confirmed' ? 'Confirmado' : order.status === 'printing' ? 'Imprimindo' : order.status === 'shipped' ? 'Enviado' : order.status === 'delivered' ? 'Entregue' : 'Cancelado' %></span></td>
-                  <td data-label="Data"><%= new Date(order.created_at).toLocaleDateString('pt-BR') %></td>
-                  <td data-label="Ações"><a href="/admin/orders/<%= order.id %>" class="btn btn-small"><i class="fas fa-eye"></i></a></td>
+                  <th>#</th>
+                  <th>Origem</th>
+                  <th>Cliente</th>
+                  <th>Itens</th>
+                  <th>Total</th>
+                  <th>Custo</th>
+                  <th>Lucro</th>
+                  <th>Margem</th>
+                  <th>Status</th>
+                  <th>Data</th>
+                  <th>Ações</th>
                 </tr>
-              <% }) %>
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                <% orders.forEach(order => {
+                  const isManual = order.notes && order.notes.startsWith('__MANUAL__|');
+                  const parts = isManual ? order.notes.split('|') : [];
+                  const realName = isManual && parts.length > 1 ? parts[1] : null;
+                  const displayName = realName || order.customer_name || '—';
+                  const cost = parseFloat(order.total_cost || 0);
+                  const profit = order.total - cost;
+                  const margin = order.total > 0 ? (profit / order.total * 100) : 0;
+                  const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+                %>
+                  <tr>
+                    <td data-label="#">#<%= order.id %></td>
+                    <td data-label="Origem"><span class="badge badge-<%= isManual ? 'manual' : 'site' %>" style="font-size:0.75rem"><%= isManual ? 'Manual' : 'Site' %></span></td>
+                    <td data-label="Cliente"><%= displayName %></td>
+                    <td data-label="Itens"><%= order.total_items || '—' %></td>
+                    <td data-label="Total">R$ <%= order.total.toFixed(2).replace('.', ',') %></td>
+                    <td data-label="Custo" class="<%= profitClass %>">R$ <%= cost.toFixed(2).replace('.', ',') %></td>
+                    <td data-label="Lucro" class="<%= profitClass %>">R$ <%= profit.toFixed(2).replace('.', ',') %></td>
+                    <td data-label="Margem" class="<%= profitClass %>"><%= margin.toFixed(2).replace('.', ',') %>%</td>
+                    <td data-label="Status"><span class="badge badge-<%= order.status %>"><%= order.status === 'pending' ? 'Pendente' : order.status === 'confirmed' ? 'Confirmado' : order.status === 'printing' ? 'Imprimindo' : order.status === 'shipped' ? 'Enviado' : order.status === 'delivered' ? 'Entregue' : 'Cancelado' %></span></td>
+                    <td data-label="Data"><%= new Date(order.created_at).toLocaleDateString('pt-BR') %></td>
+                    <td data-label="Ações"><a href="/admin/orders/<%= order.id %>" class="btn btn-small"><i class="fas fa-eye"></i></a></td>
+                  </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="mobile-only">
+          <% orders.forEach(order => {
+            const isManual = order.notes && order.notes.startsWith('__MANUAL__|');
+            const parts = isManual ? order.notes.split('|') : [];
+            const realName = isManual && parts.length > 1 ? parts[1] : null;
+            const displayName = realName || order.customer_name || '—';
+            const cost = parseFloat(order.total_cost || 0);
+            const profit = order.total - cost;
+            const profitClass = profit > 0 ? 'profit-positive' : (profit < 0 ? 'profit-negative' : '');
+            const statusMap = { pending: 'Pendente', confirmed: 'Confirmado', printing: 'Imprimindo', shipped: 'Enviado', delivered: 'Entregue' };
+            const statusText = statusMap[order.status] || 'Cancelado';
+          %>
+            <div class="order-card">
+              <div class="order-card-body">
+                <div class="order-card-header">
+                  <span class="order-client"><%= displayName %></span>
+                  <span class="badge badge-<%= order.status %>"><%= statusText %></span>
+                </div>
+                <div class="order-card-info">
+                  <div class="order-card-row">
+                    <span class="order-card-label">Venda</span>
+                    <span class="order-card-value">R$ <%= order.total.toFixed(2).replace('.', ',') %></span>
+                  </div>
+                  <div class="order-card-row">
+                    <span class="order-card-label">Lucro</span>
+                    <span class="order-card-value <%= profitClass %>">R$ <%= profit.toFixed(2).replace('.', ',') %></span>
+                  </div>
+                </div>
+              </div>
+              <div class="order-card-footer">
+                <span class="order-date"><%= new Date(order.created_at).toLocaleDateString('pt-BR') %> · <span class="badge badge-<%= isManual ? 'manual' : 'site' %>" style="font-size:0.7rem"><%= isManual ? 'Manual' : 'Site' %></span></span>
+                <a href="/admin/orders/<%= order.id %>" class="btn btn-primary btn-small"><i class="fas fa-eye"></i> Ver Detalhes</a>
+              </div>
+            </div>
+          <% }) %>
         </div>
       <% } %>
     </div>
