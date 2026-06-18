@@ -616,6 +616,219 @@ router.get('/orders/:id', asyncHandler(async (req, res) => {
   }
 }));
 
+router.get('/orders/:id/edit', asyncHandler(async (req, res) => {
+  try {
+    const order = await prepare(`
+      SELECT o.*, u.full_name, u.cpf, u.email, u.phone, u.street, u.number, u.complement, u.neighborhood, u.city, u.state, u.zip_code 
+      FROM orders o JOIN users u ON o.user_id = u.id WHERE o.id = ?
+    `).get(req.params.id);
+    if (!order) return res.status(404).send('Pedido não encontrado');
+
+    const items = await prepare('SELECT * FROM order_items WHERE order_id = ?').all(req.params.id);
+    const products = await prepare('SELECT id, name, price, cost_price, image_url FROM products WHERE active = 1 ORDER BY name').all();
+    const history = await prepare('SELECT * FROM order_edit_history WHERE order_id = ? ORDER BY created_at DESC').all(req.params.id);
+
+    // Parse items with discount info
+    const parsedItems = items.map(item => {
+      let discountType = 'none';
+      let discountValue = 0;
+      if (item.variations) {
+        try {
+          const vars = typeof item.variations === 'string' ? JSON.parse(item.variations) : item.variations;
+          if (vars.__discount__) {
+            discountType = vars.__discount__.type || 'none';
+            discountValue = vars.__discount__.value || 0;
+          }
+        } catch {}
+      }
+      return { ...item, discount_type: discountType, discount_value: discountValue };
+    });
+
+    // Parse manual order customer data from notes
+    const isManual = order.notes && order.notes.startsWith('__MANUAL__|');
+    let customerName = order.full_name;
+    let customerCompany = '';
+    let customerPhone = order.phone || '';
+    let customerEmail = order.email || '';
+    let adminNotes = '';
+
+    if (isManual) {
+      const parts = order.notes.split('|');
+      customerName = parts.length > 1 ? parts[1] : customerName;
+      customerCompany = parts.length > 2 ? parts[2] : '';
+      customerPhone = parts.length > 3 ? parts[3] : customerPhone;
+      customerEmail = parts.length > 4 ? parts[4] : customerEmail;
+      adminNotes = parts.length > 5 ? parts.slice(5).join('|') : '';
+    } else if (order.notes) {
+      adminNotes = order.notes;
+    }
+
+    const financialUnlocked = false;
+
+    res.render('admin/order-edit', {
+      order, items: parsedItems, products,
+      customerName, customerCompany, customerPhone, customerEmail, adminNotes,
+      isManual, financialUnlocked, history, error: null
+    });
+  } catch (err) {
+    console.error('Erro ao carregar formulário de edição:', err);
+    res.status(500).send('Erro ao carregar formulário de edição.');
+  }
+}));
+
+router.post('/orders/:id/edit', asyncHandler(async (req, res) => {
+  try {
+    const order = await prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id);
+    if (!order) return res.status(404).send('Pedido não encontrado');
+
+    const {
+      customer_name, customer_company, customer_phone, customer_email, admin_notes,
+      customer_cpf, customer_cep, customer_street, customer_number,
+      customer_complement, customer_neighborhood, customer_city, customer_state,
+      items, financial_unlock, edit_reason
+    } = req.body;
+
+    if (!customer_name || !items || !Array.isArray(items) || items.length === 0) {
+      return res.redirect('/admin/orders/' + req.params.id + '/edit?error=' + encodeURIComponent('Nome do cliente e pelo menos um item são obrigatórios.'));
+    }
+
+    const hasFinancialChanges = financial_unlock === '1';
+    if (hasFinancialChanges && !edit_reason) {
+      return res.redirect('/admin/orders/' + req.params.id + '/edit?error=' + encodeURIComponent('Informe o motivo da alteração financeira.'));
+    }
+
+    const changes = [];
+
+    // Detect customer data changes
+    const isManual = order.notes && order.notes.startsWith('__MANUAL__|');
+    if (isManual) {
+      const oldParts = order.notes.split('|');
+      const newNotes = `__MANUAL__|${customer_name}|${customer_company || ''}|${customer_phone || ''}|${customer_email || ''}|${admin_notes || ''}`;
+      if (newNotes !== order.notes) {
+        changes.push({ field: 'Dados do Cliente', old: oldParts.slice(1).join(' | '), new: `${customer_name} | ${customer_company || ''} | ${customer_phone || ''} | ${customer_email || ''}` });
+      }
+      await prepare('UPDATE orders SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(newNotes, req.params.id);
+    } else {
+      if (admin_notes !== (order.notes || '')) {
+        changes.push({ field: 'Observações', old: order.notes || '', new: admin_notes || '' });
+      }
+      // Update user data for site orders
+      await prepare(`UPDATE users SET full_name = ?, cpf = ?, phone = ?, email = ?,
+        street = ?, number = ?, complement = ?, neighborhood = ?, city = ?, state = ?, zip_code = ?
+        WHERE id = ?`).run(
+          customer_name, customer_cpf || '', customer_phone || '', customer_email || '',
+          customer_street || '', customer_number || '', customer_complement || '',
+          customer_neighborhood || '', customer_city || '', customer_state || '',
+          customer_cep || '', order.user_id
+        );
+      if (order.notes !== (admin_notes || '')) {
+        await prepare('UPDATE orders SET notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(admin_notes || '', req.params.id);
+      }
+    }
+
+    // Process items
+    let subtotal = 0;
+    let totalDiscount = 0;
+    let totalCost = 0;
+    const orderItems = [];
+
+    for (const item of items) {
+      const qty = parseInt(item.quantity) || 1;
+      const price = parseFloat(item.price) || 0;
+      const costPrice = parseFloat(item.cost_price) || 0;
+      const discType = item.discount_type || 'none';
+      const discVal = parseFloat(item.discount_value) || 0;
+
+      let finalPrice = price;
+      let itemDiscount = 0;
+      if (discType === 'fixed') {
+        itemDiscount = Math.min(discVal, price);
+        finalPrice = price - itemDiscount;
+      } else if (discType === 'percent') {
+        itemDiscount = price * (Math.min(discVal, 100) / 100);
+        finalPrice = price - itemDiscount;
+      }
+
+      const itemSubtotal = price * qty;
+      const itemFinal = finalPrice * qty;
+      const itemCost = costPrice * qty;
+      const itemDiscTotal = itemDiscount * qty;
+
+      subtotal += itemSubtotal;
+      totalDiscount += itemDiscTotal;
+      totalCost += itemCost;
+
+      const variationsPayload = JSON.stringify({
+        __discount__: { type: discType, value: discVal, total: itemDiscTotal }
+      });
+
+      orderItems.push({
+        product_id: parseInt(item.product_id),
+        product_name: item.product_name,
+        quantity: qty,
+        price: finalPrice,
+        cost_price: costPrice,
+        variations: variationsPayload
+      });
+    }
+
+    const finalTotal = subtotal - totalDiscount;
+    const oldTotal = order.total;
+
+    // Detect financial changes
+    if (hasFinancialChanges && Math.abs(finalTotal - oldTotal) > 0.001) {
+      changes.push({ field: 'Valor Total', old: `R$ ${oldTotal.toFixed(2)}`, new: `R$ ${finalTotal.toFixed(2)}` });
+    }
+
+    // Detect item changes
+    const oldItems = await prepare('SELECT * FROM order_items WHERE order_id = ? ORDER BY id').all(req.params.id);
+    const oldItemSummary = oldItems.map(i => `${i.product_name} x${i.quantity} @ R$ ${i.price.toFixed(2)}`).join('; ');
+    const newItemSummary = orderItems.map(i => `${i.product_name} x${i.quantity} @ R$ ${i.price.toFixed(2)}`).join('; ');
+    if (oldItemSummary !== newItemSummary) {
+      changes.push({ field: 'Itens do Pedido', old: oldItemSummary, new: newItemSummary });
+    }
+
+    // Apply changes (sequential operations; individual sqliteSave provides crash safety)
+    if (hasFinancialChanges) {
+      await prepare('UPDATE orders SET total = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(finalTotal, req.params.id);
+    } else {
+      await prepare('UPDATE orders SET updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(req.params.id);
+    }
+
+    // Replace order items
+    await prepare('DELETE FROM order_items WHERE order_id = ?').run(req.params.id);
+    for (const oi of orderItems) {
+      await prepare('INSERT INTO order_items (order_id, product_id, product_name, quantity, price, cost_price, variations) VALUES (?, ?, ?, ?, ?, ?, ?)')
+        .run(req.params.id, oi.product_id, oi.product_name, oi.quantity, oi.price, oi.cost_price, oi.variations);
+    }
+
+    // Sync transaction if financial changes
+    if (hasFinancialChanges) {
+      const itemNames = orderItems.map(i => `${i.product_name} x${i.quantity}`).join(', ');
+      const prefix = isManual ? 'Pedido Manual' : 'Pedido';
+      const existingTx = await prepare("SELECT id FROM transactions WHERE order_id = ? AND (type = 'revenue' OR type = 'cancelled')").get(req.params.id);
+      if (existingTx) {
+        await prepare('UPDATE transactions SET amount = ?, description = ?, date = ? WHERE id = ?')
+          .run(finalTotal, `${prefix} #${req.params.id}: ${itemNames}`, new Date().toISOString().split('T')[0], existingTx.id);
+      } else {
+        await prepare('INSERT INTO transactions (type, category, description, amount, order_id, date) VALUES (?, ?, ?, ?, ?, ?)')
+          .run('revenue', 'order', `${prefix} #${req.params.id}: ${itemNames}`, finalTotal, req.params.id, new Date().toISOString().split('T')[0]);
+      }
+    }
+
+    // Log all changes to history
+    for (const c of changes) {
+      await prepare('INSERT INTO order_edit_history (order_id, admin_id, field_name, old_value, new_value, reason) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(req.params.id, req.admin.id, c.field, c.old, c.new, edit_reason || '');
+    }
+
+    res.redirect('/admin/orders/' + req.params.id);
+  } catch (err) {
+    console.error('Erro ao salvar edição do pedido:', err);
+    res.redirect('/admin/orders/' + req.params.id + '/edit?error=' + encodeURIComponent('Erro ao salvar edição. Verifique os dados.'));
+  }
+}));
+
 router.post('/orders/status/:id', asyncHandler(async (req, res) => {
   try {
     const { status } = req.body;

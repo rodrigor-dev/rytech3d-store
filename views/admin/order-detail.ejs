@@ -3,7 +3,10 @@
 <div class="admin-content">
   <div class="admin-header">
     <h1>Pedido #<%= order.id %></h1>
-    <a href="/admin/orders" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Voltar</a>
+    <div style="display:flex;gap:8px">
+      <a href="/admin/orders/<%= order.id %>/edit" class="btn btn-outline"><i class="fas fa-edit"></i> Editar Pedido</a>
+      <a href="/admin/orders" class="btn btn-outline"><i class="fas fa-arrow-left"></i> Voltar</a>
+    </div>
   </div>
 
 <% 
