@@ -51,7 +51,7 @@
         </div>
       <% } else { %>
         <div class="table-responsive">
-          <table class="admin-table">
+          <table class="admin-table table-cards">
             <thead>
               <tr>
                 <th>ID</th>
@@ -64,16 +64,16 @@
             <tbody>
               <% admins.forEach(admin => { %>
                 <tr>
-                  <td><%= admin.id %></td>
-                  <td>
+                  <td data-label="ID"><%= admin.id %></td>
+                  <td data-label="Usuário">
                     <strong><%= admin.username %></strong>
                     <% if (adminUser && admin.id === adminUser.id) { %>
                       <span class="badge badge-info">Você</span>
                     <% } %>
                   </td>
-                  <td><%= admin.email || '-' %></td>
-                  <td><%= new Date(admin.created_at).toLocaleDateString('pt-BR') %></td>
-                  <td>
+                  <td data-label="Email"><%= admin.email || '-' %></td>
+                  <td data-label="Cadastro"><%= new Date(admin.created_at).toLocaleDateString('pt-BR') %></td>
+                  <td data-label="Ações">
                     <% if (admins.length > 1 && (!adminUser || admin.id !== adminUser.id)) { %>
                       <button class="btn btn-danger btn-small" onclick="deleteAdmin(<%= admin.id %>, '<%= admin.username %>')">
                         <i class="fas fa-trash"></i> Excluir

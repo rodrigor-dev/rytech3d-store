@@ -20,7 +20,7 @@
         </div>
       <% } else { %>
         <div class="table-responsive">
-          <table class="admin-table">
+          <table class="admin-table table-cards">
             <thead>
               <tr>
                 <th>Nome</th>
@@ -36,14 +36,14 @@
             <tbody>
               <% customers.forEach(customer => { %>
                 <tr>
-                  <td><%= customer.full_name %></td>
-                  <td><%= customer.email %></td>
-                  <td><%= customer.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></td>
-                  <td><%= customer.phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3') %></td>
-                  <td><%= customer.city %>/<%= customer.state %></td>
-                  <td><%= customer.total_orders %></td>
-                  <td>R$ <%= (customer.total_spent || 0).toFixed(2).replace('.', ',') %></td>
-                  <td><%= new Date(customer.created_at).toLocaleDateString('pt-BR') %></td>
+                  <td data-label="Nome"><%= customer.full_name %></td>
+                  <td data-label="Email"><%= customer.email %></td>
+                  <td data-label="CPF"><%= customer.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') %></td>
+                  <td data-label="Telefone"><%= customer.phone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3') %></td>
+                  <td data-label="Cidade"><%= customer.city %>/<%= customer.state %></td>
+                  <td data-label="Pedidos"><%= customer.total_orders %></td>
+                  <td data-label="Total Gasto">R$ <%= (customer.total_spent || 0).toFixed(2).replace('.', ',') %></td>
+                  <td data-label="Cadastro"><%= new Date(customer.created_at).toLocaleDateString('pt-BR') %></td>
                 </tr>
               <% }) %>
             </tbody>

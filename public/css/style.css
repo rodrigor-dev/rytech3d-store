@@ -2086,3 +2086,202 @@ img { max-width: 100%; height: auto; }
 .btn-google i { font-size: 1.2rem; color: #4285f4; }
 .auth-divider { display: flex; align-items: center; gap: 16px; margin: 20px 0; color: var(--text-muted); font-size: 0.85rem; }
 .auth-divider::before, .auth-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+/* ============================================================
+   ADMIN MOBILE OPTIMIZATION
+   ============================================================ */
+
+/* Sidebar mobile improvements */
+@media (max-width: 968px) {
+  .sidebar-toggle {
+    top: 10px; left: 10px;
+    width: 40px; height: 40px;
+    z-index: 201;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  .sidebar-toggle span { width: 20px; }
+  .admin-sidebar {
+    width: 260px;
+    left: -280px;
+    transition: left 0.25s ease;
+    z-index: 200;
+  }
+  .admin-sidebar.open { left: 0; }
+  .sidebar-overlay.active { display: block; z-index: 199; }
+  .admin-main { margin-left: 0; padding: 60px 14px 20px; }
+  .sidebar-link { padding: 12px 14px; font-size: 0.95rem; min-height: 44px; }
+  .admin-card-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .admin-card-body textarea, .admin-card-body select { min-height: 44px; font-size: 0.9rem; }
+  .sidebar-link i { font-size: 1.1rem; width: 22px; }
+  .sidebar-user { padding: 14px 12px; }
+  .admin-content h1 { font-size: 1.4rem; }
+}
+
+/* Mobile < 640px: cards instead of tables */
+@media (max-width: 640px) {
+  /* General spacing */
+  .admin-content { padding: 10px; }
+  .admin-content h1 { font-size: 1.2rem; margin-bottom: 14px; }
+  .admin-header { flex-direction: column; align-items: stretch; gap: 10px; margin-bottom: 16px; }
+  .admin-header .btn { width: 100%; justify-content: center; min-height: 44px; }
+
+  /* Stats grid */
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { padding: 14px; gap: 12px; border-radius: 10px; }
+  .stat-icon { width: 40px; height: 40px; font-size: 1rem; border-radius: 10px; }
+  .stat-value { font-size: 1.2rem; }
+  .stat-large { font-size: 1.4rem; }
+  .stat-label { font-size: 0.7rem; }
+  .stat-card-wide { grid-column: 1 / -1; }
+
+  /* Admin cards */
+  .admin-card { border-radius: 10px; margin-bottom: 14px; }
+  .admin-card-header { padding: 12px 14px; }
+  .admin-card-header h2 { font-size: 0.9rem; }
+  .admin-card-body { padding: 12px 14px; }
+
+  /* Filters */
+  .admin-filters { gap: 6px; margin-bottom: 14px; }
+  .admin-filters .filter-btn { padding: 8px 14px; font-size: 0.8rem; min-height: 38px; }
+
+  /* Table → Card conversion (requires .table-cards class + data-label on each td) */
+  .admin-table.table-cards, .finance-table.table-cards,
+  .admin-table.table-cards tbody, .finance-table.table-cards tbody,
+  .admin-table.table-cards tr, .finance-table.table-cards tr,
+  .admin-table.table-cards td, .finance-table.table-cards td {
+    display: block;
+  }
+  .admin-table.table-cards thead, .finance-table.table-cards thead { display: none; }
+  .admin-table.table-cards tbody tr, .finance-table.table-cards tbody tr {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    padding: 0;
+    background: var(--bg-secondary);
+    overflow: hidden;
+  }
+  .admin-table.table-cards tbody tr:hover td,
+  .finance-table.table-cards tbody tr:hover td { background: transparent; }
+  .admin-table.table-cards tbody td, .finance-table.table-cards tbody td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.85rem;
+    gap: 8px;
+  }
+  .admin-table.table-cards tbody td:last-child,
+  .finance-table.table-cards tbody td:last-child { border-bottom: none; }
+  .admin-table.table-cards tbody td::before,
+  .finance-table.table-cards tbody td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    flex-shrink: 0;
+  }
+  .admin-table.table-cards tbody td:empty { display: none; }
+  .table-responsive { overflow-x: visible; }
+
+  /* Buttons */
+  .btn { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+  .btn-small, .btn-sm { min-height: 38px; padding: 6px 14px; font-size: 0.8rem; }
+  .admin-card-body .btn.btn-outline { width: 100%; justify-content: center; min-height: 44px; }
+
+  /* Forms */
+  .form-row { flex-direction: column; }
+  .form-group { width: 100%; }
+  .form-control,
+  .admin-card-body input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+  .admin-card-body textarea,
+  .admin-card-body select {
+    font-size: 0.95rem; min-height: 44px; padding: 10px 14px;
+  }
+  .form-group label { font-size: 0.85rem; margin-bottom: 4px; display: block; }
+  .form-actions { flex-direction: column; gap: 10px; }
+  .form-actions .btn { width: 100%; min-height: 48px; justify-content: center; }
+  .form-group-sm { max-width: 100%; }
+
+  /* Status form */
+  .status-form .form-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  .status-form select { width: 100%; min-height: 48px; }
+  .status-form button { width: 100%; min-height: 48px; }
+
+  /* Order detail */
+  .order-detail-grid { gap: 12px; }
+  .detail-row { font-size: 0.85rem; padding: 10px 0; }
+  .detail-label { font-size: 0.75rem; min-width: 80px; }
+  .detail-actions { margin-top: 12px; }
+  .detail-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
+
+  /* Search bar (admin customers) */
+  .admin-card-body .search-bar { flex-wrap: wrap; }
+  .admin-card-body .search-bar input { min-width: 0; flex: 1; width: 100%; }
+  .admin-card-body .search-bar button { min-height: 40px; }
+
+  /* Finance summary */
+  .finance-summary { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .finance-card { padding: 14px; border-radius: 10px; }
+  .finance-card .label { font-size: 0.7rem; }
+  .finance-card .value { font-size: 1.3rem; }
+
+  /* Finance nav */
+  .finance-nav { flex-direction: column; align-items: stretch; gap: 8px; }
+  .finance-nav select, .finance-nav input { width: 100%; min-height: 44px; font-size: 0.9rem; }
+  .finance-nav .btn { min-height: 44px; }
+
+  /* Modals */
+  .modal-box { padding: 20px; width: 95%; max-height: 85vh; overflow-y: auto; }
+  .modal-actions { flex-direction: column; }
+  .modal-actions .btn { width: 100%; justify-content: center; min-height: 44px; }
+  .modal-box h2 { font-size: 1.1rem; }
+  .modal-box .form-group { margin-bottom: 14px; }
+
+  /* Image previews */
+  .image-preview-grid { gap: 8px; }
+  .image-preview-item { width: 80px; height: 80px; border-radius: 6px; }
+  .current-image img { max-height: 120px; }
+
+  /* Product form */
+  .variation-row { flex-direction: column; align-items: stretch; }
+  .variation-row .form-control { width: 100% !important; min-width: 0 !important; }
+
+  /* Dashboard */
+  .admin-content h1 { font-size: 1.2rem; }
+
+  /* Product list specific */
+  .products-table-card tbody td[data-label] { justify-content: space-between; }
+  .col-img { display: none; }
+
+  /* Admins page */
+  .admin-card-body .btn-danger { min-height: 40px; }
+
+  /* Order list specific - show key info only */
+  .admin-table tbody td:nth-child(1) { font-weight: 700; }
+  
+  /* Toast */
+  .toast { bottom: 20px; right: 16px; left: 16px; text-align: center; font-size: 0.85rem; }
+}
+
+/* Small phones < 420px */
+@media (max-width: 420px) {
+  .admin-content { padding: 8px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .stat-card { padding: 10px; gap: 8px; }
+  .stat-icon { width: 34px; height: 34px; font-size: 0.85rem; }
+  .stat-value { font-size: 1rem; }
+  .stat-large { font-size: 1.2rem; }
+  .admin-table tbody td { padding: 8px 10px; font-size: 0.8rem; }
+  .admin-card-body { padding: 8px 10px; }
+  .admin-card-header { padding: 10px 12px; }
+  .finance-summary { grid-template-columns: 1fr 1fr; gap: 6px; }
+  .finance-card { padding: 10px; }
+  .finance-card .value { font-size: 1.1rem; }
+  .image-preview-item { width: 70px; height: 70px; }
+  .sidebar-toggle { top: 6px; left: 6px; width: 36px; height: 36px; }
+  .admin-main { padding: 52px 8px 14px; }
+}

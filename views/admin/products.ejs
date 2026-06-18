@@ -16,7 +16,7 @@
         </div>
       <% } else { %>
         <div class="table-responsive">
-          <table class="admin-table">
+          <table class="admin-table table-cards">
             <thead>
               <tr>
                 <th class="col-img">Imagem</th>
@@ -32,18 +32,18 @@
             <tbody>
               <% products.forEach(product => { %>
                 <tr class="product-row" data-href="/admin/products/edit/<%= product.id %>">
-                  <td class="col-img"><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
-                  <td class="col-name"><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
-                  <td class="col-cat"><%= product.category %></td>
-                  <td class="col-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
-                  <td class="col-delivery"><%= product.delivery_time %></td>
-                  <td class="col-featured"><%= product.featured ? '⭐' : '-' %></td>
-                  <td class="col-active">
+                  <td data-label="Imagem" class="col-img"><img src="<%= product.image_url %>" alt="<%= product.name %>" class="table-thumb" onerror="this.src='/uploads/products/default.svg'"></td>
+                  <td data-label="Nome" class="col-name"><a href="/admin/products/edit/<%= product.id %>" class="product-name-link"><%= product.name %></a></td>
+                  <td data-label="Categoria" class="col-cat"><%= product.category %></td>
+                  <td data-label="Preço" class="col-price">R$ <%= product.price.toFixed(2).replace('.', ',') %></td>
+                  <td data-label="Prazo" class="col-delivery"><%= product.delivery_time %></td>
+                  <td data-label="Destaque" class="col-featured"><%= product.featured ? '⭐' : '-' %></td>
+                  <td data-label="Ativo" class="col-active">
                     <button class="toggle-active-btn" data-id="<%= product.id %>" data-active="<%= product.active %>">
                       <%= product.active ? '✅' : '❌' %>
                     </button>
                   </td>
-                  <td class="col-actions actions-cell">
+                  <td data-label="Ações" class="col-actions actions-cell">
                     <a href="/admin/products/edit/<%= product.id %>" class="btn btn-small btn-outline"><i class="fas fa-edit"></i></a>
                     <form action="/admin/products/delete/<%= product.id %>" method="POST" style="display:inline" onsubmit="return confirm('Excluir <%= product.name %>?')">
                       <button type="submit" class="btn btn-small btn-danger"><i class="fas fa-trash"></i></button>
