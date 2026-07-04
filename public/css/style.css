@@ -2417,8 +2417,8 @@ img { max-width: 100%; height: auto; display: block; }
   .stat-card-wide { grid-column: 1 / -1; }
 
   /* ===== ORDER CARDS ===== */
-  .order-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: var(--sp-3); overflow: hidden; }
-  .order-card-body { padding: var(--sp-4); }
+  .order-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: var(--sp-3); overflow: hidden; padding: 0; }
+  .order-card-body { padding: var(--sp-4) var(--sp-4) var(--sp-3); }
   .order-card-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: var(--sp-3); }
   .order-client { font-size: var(--text-base); font-weight: 600; color: var(--text-primary); }
   .order-card-info { display: flex; flex-direction: column; gap: var(--sp-2); }
@@ -2428,10 +2428,11 @@ img { max-width: 100%; height: auto; display: block; }
   .order-card-footer {
     display: flex; justify-content: space-between; align-items: center;
     padding: var(--sp-3) var(--sp-4); border-top: 1px solid var(--border);
-    background: var(--bg-secondary);
+    background: var(--bg-secondary); gap: var(--sp-2);
   }
   .order-date { font-size: var(--text-xs); color: var(--text-muted); }
-  .order-card-footer .btn { min-height: 40px; padding: var(--sp-2) var(--sp-5); font-size: var(--text-sm); }
+  .order-card-footer .btn { min-height: 40px; padding: var(--sp-2) var(--sp-4); font-size: var(--text-sm); white-space: nowrap; }
+  .order-card-footer .badge { flex-shrink: 0; }
 
   /* ===== PRODUCT CARDS ===== */
   .product-card {
@@ -2646,7 +2647,6 @@ img { max-width: 100%; height: auto; display: block; }
   .search-bar { width: 100%; }
   .search-bar input { min-width: 0; flex: 1; }
 
-  .admin-content { padding: var(--sp-3); }
   .stats-grid { grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
   .stat-card { padding: var(--sp-3); gap: var(--sp-2); }
   .stat-icon { width: 36px; height: 36px; font-size: var(--text-sm); border-radius: var(--radius-sm); }
