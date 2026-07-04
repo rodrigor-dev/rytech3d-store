@@ -2278,9 +2278,8 @@ img { max-width: 100%; height: auto; display: block; }
   display: none;
   position: fixed;
   inset: 0;
-  background: var(--bg-overlay);
-  z-index: var(--z-overlay);
-  backdrop-filter: blur(4px);
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 99;
 }
 .sidebar-overlay.active { display: block; }
 
@@ -2374,7 +2373,7 @@ img { max-width: 100%; height: auto; display: block; }
     z-index: 200;
   }
   .admin-sidebar.open { left: 0; }
-  .sidebar-overlay.active { display: block; z-index: 199; background: rgba(0, 0, 0, 0.6); }
+  .sidebar-overlay.active { display: block; }
   .sidebar-link {
     padding: var(--sp-4); font-size: var(--text-base);
     min-height: 48px; border-radius: var(--radius-sm);
@@ -2629,9 +2628,8 @@ img { max-width: 100%; height: auto; display: block; }
     display: none;
     position: fixed;
     inset: 0;
-    background: var(--bg-overlay);
+    background: rgba(0, 0, 0, 0.6);
     z-index: 1050;
-    backdrop-filter: blur(4px);
   }
   .nav-drawer-overlay.active { display: block; }
 
