@@ -1,0 +1,279 @@
+<script>
+// ══════════════ CALCULADORA DE CUSTO 3D ══════════════
+(function() {
+  var STANDALONE = <%= (typeof isStandalone !== 'undefined' && isStandalone) ? 'true' : 'false' %>;
+  var PRODUCT_ID = <%= (typeof product !== 'undefined' && product && product.id) ? product.id : 'null' %>;
+
+  var $ = function(id) { return document.getElementById(id); };
+  var el = function(sel) { return document.querySelector(sel); };
+  var all = function(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); };
+
+  var fmtBRL = function(n) {
+    var v = Number(n) || 0;
+    return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+  // Aceita "1.234,56" (pt-BR) e "1234.56". Mesma regra do servidor:
+  // "1.130" com 3 casas após o ponto é milhar, senão vira 1,13.
+  var num = function(v) {
+    if (typeof v === 'number') return isFinite(v) ? v : 0;
+    if (v === null || v === undefined) return 0;
+    var s = String(v).trim().replace(/[R$\s%]/g, '');
+    if (!s) return 0;
+    if (s.indexOf(',') !== -1 && s.indexOf('.') !== -1) s = s.replace(/\./g, '').replace(',', '.');
+    else if (s.indexOf(',') !== -1) s = s.replace(',', '.');
+    else if (/\.\d{3}$/.test(s)) s = s.replace(/\./g, '');
+    var n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+  };
+
+  var panel = $('costCalcPanel');
+  if (!panel) return;
+
+  var toggle = $('costCalcToggle');
+  if (toggle) {
+    toggle.addEventListener('click', function() {
+      var isOpen = !panel.hasAttribute('hidden');
+      if (isOpen) { panel.setAttribute('hidden', ''); toggle.setAttribute('aria-expanded', 'false'); }
+      else { panel.removeAttribute('hidden'); toggle.setAttribute('aria-expanded', 'true'); recalc(); }
+    });
+  }
+
+  // --- Coleta ---
+  // Campos em branco vão como '' para o servidor usar o valor fixo da loja.
+  // Só mandamos 0 quando a ausência realmente significa zero (ex.: 0 horas).
+  function collect() {
+    var priceEl = $('price');
+    var raw = function(id) { var n = $(id); return n ? n.value.trim() : ''; };
+    return {
+      filament_grams: num(raw('c_filament_grams')),
+      print_hours: num(raw('c_print_hours')),
+      material_waste_pct: num(raw('c_material_waste_pct')),
+      failure_rate: raw('c_failure_rate') === '' ? '' : num(raw('c_failure_rate')),
+      labor_hours: num(raw('c_labor_hours')),
+      labor_rate: raw('c_labor_rate') === '' ? '' : num(raw('c_labor_rate')),
+      packaging_cost: raw('c_packaging_cost'),
+      additional_cost: raw('c_additional_cost'),
+      target_margin: num(raw('c_target_margin')),
+      sale_price: priceEl ? num(priceEl.value) : 0
+    };
+  }
+
+  var lastTotal = 0;
+
+  // --- Renderização ---
+  function render(d) {
+    lastTotal = d.total_cost;
+    var b = d.breakdown;
+
+    $('r_total').textContent = fmtBRL(d.total_cost);
+    $('r_material').textContent = fmtBRL(b.material);
+    $('r_machine').textContent = fmtBRL(b.machine);
+    $('r_labor').textContent = fmtBRL(b.labor);
+    $('r_extras').textContent = fmtBRL(b.packaging + b.additional);
+    $('r_suggested').textContent = fmtBRL(d.suggested_price);
+    $('r_suggestedNote').textContent = 'para ' + d.target_margin + '% de lucro';
+
+    // Lucro e margem só fazem sentido quando existe preço de venda
+    var hasSale = num($('price') ? $('price').value : 0) > 0;
+    var profit = hasSale ? (num($('price').value) - d.total_cost) : 0;
+    $('r_profit').textContent = hasSale ? fmtBRL(profit) : '—';
+    $('r_profit').className = !hasSale ? '' : (profit > 0 ? 'is-positive' : (profit < 0 ? 'is-negative' : ''));
+
+    var m = d.current_margin;
+    $('r_margin').textContent = hasSale ? m.toFixed(1).replace('.', ',') + '%' : '—';
+    $('r_margin').className = !hasSale ? '' : (m >= 30 ? 'is-good' : (m > 0 ? 'is-ok' : 'is-negative'));
+
+    if (d.filament_grams > 0 || d.print_hours > 0) {
+      $('r_profitNote').textContent = b.failureWaste > 0
+        ? 'Inclui ' + d.failure_rate + '% de falha (' + fmtBRL(b.failureWaste) + ' de retrabalho)'
+        : 'Material + máquina + acabamento';
+    } else {
+      $('r_profitNote').textContent = 'Informe filamento e horas para calcular';
+    }
+
+    if (d.machine) {
+      $('mHourly').textContent = d.machine.hourly.toFixed(2).replace('.', ',');
+      $('mDep').textContent = d.machine.depreciation.toFixed(2).replace('.', ',');
+      $('mEnergy').textContent = d.machine.energy.toFixed(2).replace('.', ',');
+      $('mWattage').textContent = d.machine.wattage;
+    }
+
+    var orig = [];
+    if (b.packagingCustom) orig.push('embalagem desta peça');
+    if (b.additionalCustom) orig.push('extras desta peça');
+    $('r_origin').textContent = orig.length
+      ? 'Usando ' + orig.join(' e ') + '.'
+      : 'Embalagem e extras usando os padrões da loja.';
+
+    if (STANDALONE) renderCompare(d);
+  }
+
+  // --- Tabela comparativa de margens (página avulsa) ---
+  function renderCompare(d) {
+    var box = $('costCompare');
+    var body = $('costCompareBody');
+    if (!box || !body) return;
+    if (d.total_cost <= 0) { box.setAttribute('hidden', ''); return; }
+    box.removeAttribute('hidden');
+
+    var rows = '';
+    [15, 20, 25, 30, 40, 50, 60].forEach(function(pct) {
+      var price = d.total_cost / (1 - pct / 100);
+      var lucro = price - d.total_cost;
+      var ativo = pct === d.target_margin ? ' class="is-active"' : '';
+      rows += '<tr' + ativo + '>' +
+        '<td><b>' + pct + '%</b></td>' +
+        '<td>' + fmtBRL(price) + '</td>' +
+        '<td class="pos">' + fmtBRL(lucro) + '</td>' +
+        '</tr>';
+    });
+    body.innerHTML = rows;
+  }
+
+  function setStatus(txt, kind, targetId) {
+    var node = $(targetId || 'costStatus');
+    if (!node) return;
+    node.textContent = txt;
+    node.className = 'cost-hint' + (kind ? ' is-' + kind : '');
+  }
+
+  // --- Recalculo com debounce ---
+  var timer = null;
+  function recalc() {
+    if (panel.hasAttribute('hidden')) return;
+    clearTimeout(timer);
+    timer = setTimeout(function() {
+      fetch('/admin/api/products/cost-preview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(collect())
+      })
+      .then(function(r) {
+        if (r.status === 401) throw new Error('Sua sessão expirou. Recarregue a página.');
+        if (!r.ok) throw new Error('Não foi possível calcular agora.');
+        return r.json();
+      })
+      .then(function(d) {
+        if (!d || d.error) throw new Error((d && d.error) || 'Erro no cálculo.');
+        render(d);
+        setStatus('', null, STANDALONE ? 'costSettingsStatus' : 'costStatus');
+      })
+      .catch(function(err) { setStatus(err.message || 'Erro de conexão.', 'error', STANDALONE ? 'costSettingsStatus' : 'costStatus'); });
+    }, 180);
+  }
+
+  // --- Atalhos de margem ---
+  var presets = $('costMarginPresets');
+  if (presets) {
+    presets.addEventListener('click', function(e) {
+      var btn = e.target.closest ? e.target.closest('.cost-preset') : null;
+      if (!btn) return;
+      $('c_target_margin').value = btn.getAttribute('data-margin');
+      recalc();
+    });
+  }
+
+  // --- Editar padrões ---
+  var settingsBox = $('costSettingsBox');
+  function toggleSettings() {
+    if (!settingsBox) return;
+    var hidden = settingsBox.hasAttribute('hidden');
+    if (hidden) {
+      settingsBox.removeAttribute('hidden');
+      settingsBox.classList.add('is-open');
+      var first = settingsBox.querySelector('input');
+      if (first && window.matchMedia('(min-width: 900px)').matches) first.focus();
+    } else {
+      settingsBox.setAttribute('hidden', '');
+      settingsBox.classList.remove('is-open');
+    }
+  }
+  ['costEditSettings', 'costEditSettingsMobile'].forEach(function(id) {
+    var b = $(id);
+    if (b) b.addEventListener('click', toggleSettings);
+  });
+
+  // Conversão R$/kg -> R$/g em tempo real
+  var fKg = $('s_filament_price');
+  var fG = $('s_filament_pergram');
+  if (fKg && fG) {
+    var syncGr = function() {
+      fG.textContent = fmtBRL(num(fKg.value) / 1000) + ' /g';
+    };
+    fKg.addEventListener('input', syncGr);
+  }
+
+  // --- Salvar padrões ---
+  var saveBtn = $('costSaveSettings');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function() {
+      var body = {
+        energy_rate: $('s_energy_rate').value,
+        printer_watts: $('s_printer_watts').value,
+        printer_price: $('s_printer_price').value,
+        printer_life_hours: $('s_printer_life_hours').value,
+        maintenance_hourly: $('s_maintenance_hourly').value,
+        packaging_cost: $('s_packaging_cost').value,
+        other_costs: $('s_other_costs').value,
+        filament_price: $('s_filament_price').value,
+        failure_rate: $('s_failure_rate').value,
+        labor_rate: $('s_labor_rate').value,
+        default_margin: $('s_default_margin').value
+      };
+      saveBtn.disabled = true;
+      saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Salvando...';
+      fetch('/admin/cost-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(body)
+      })
+      .then(function(r) {
+        if (r.status === 401) throw new Error('Sua sessão expirou. Recarregue a página.');
+        return r.json();
+      })
+      .then(function(d) {
+        if (!d.success) throw new Error(d.error || 'Erro ao salvar.');
+        setStatus('Padrões salvos. Valem para todos os produtos.', 'ok', 'costSettingsStatus');
+        recalc();
+        setTimeout(function() { if (settingsBox) { settingsBox.setAttribute('hidden', ''); settingsBox.classList.remove('is-open'); } }, 1100);
+      })
+      .catch(function(err) { setStatus(err.message || 'Erro de conexão.', 'error', 'costSettingsStatus'); })
+      .finally(function() {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Salvar padrões';
+      });
+    });
+  }
+
+  // --- Aplicar custo no campo do produto ---
+  var applyBtn = $('costApply');
+  if (applyBtn) {
+    applyBtn.addEventListener('click', function() {
+      var g = num($('c_filament_grams').value);
+      var h = num($('c_print_hours').value);
+      if (g <= 0 && h <= 0) {
+        setStatus('Informe o filamento (g) e as horas de impressão primeiro.', 'error');
+        return;
+      }
+      $('cost_price').value = lastTotal.toFixed(2);
+      var hint = $('costPriceHint');
+      if (hint) hint.textContent = 'Calculado automaticamente — ' + fmtBRL(lastTotal);
+      setStatus('Custo aplicado. Não esqueça de salvar o produto.', 'ok');
+      $('cost_price').dispatchEvent(new Event('input', { bubbles: true }));
+    });
+  }
+
+  // --- Eventos ---
+  var targets = all('.cost-input')
+    .concat(all('#c_target_margin'))
+    .concat(all('#price'))
+    .concat(all('.cost-preset'))
+    .filter(Boolean);
+  targets.forEach(function(node) {
+    node.addEventListener('input', recalc);
+    node.addEventListener('change', recalc);
+  });
+
+  if (!panel.hasAttribute('hidden')) recalc();
+})();
+</script>

@@ -32,17 +32,28 @@ const { prepare } = require('./database');
 /** Defaults do perfil Bambu Lab A1 (usados se o banco ainda não tiver as chaves) */
 const DEFAULT_COST_SETTINGS = {
   energy_rate: 1.13,        // R$/kWh  — tarifa informada pelo usuário
-  printer_power: 0.10,      // kWh/h   — consumo médio da A1 (~100 W)
+  printer_watts: 180,       // W       — consumo médio da impressora
   printer_price: 5500.00,   // R$      — investimento (com AMS)
   printer_life_hours: 15000,// horas   — vida útil estimada
   maintenance_hourly: 0.05, // R$/h    — bico/PEI/rolamentos
   packaging_cost: 3.00,     // R$
   other_costs: 0.00,        // R$
-  filament_price: 0.10,     // R$/g
+  filament_price: 130.00,   // R$/kg   — preço do carretel (≈ R$ 0,13/g)
   failure_rate: 10,         // %
   labor_rate: 0.00,         // R$/h
   default_margin: 40        // % de lucro usada como sugestão inicial de venda
 };
+
+/** Converte o preço do filamento de R$/kg para R$/g. */
+function filamentPerGram(settings) {
+  const perKg = toNum(settings.filament_price);
+  return perKg > 0 ? perKg / 1000 : 0;
+}
+
+/** Converte o consumo da impressora de W para kWh/h. */
+function printerKwhPerHour(settings) {
+  return Math.max(0, toNum(settings.printer_watts)) / 1000;
+}
 
 /** Lê todos os cost_settings, mesclando com os defaults. */
 async function getCostSettings() {
@@ -70,6 +81,11 @@ function toNum(v) {
   } else if (s.indexOf(',') !== -1) {
     // Só vírgula: decimal
     s = s.replace(',', '.');
+  } else if (/\.\d{3}$/.test(s)) {
+    // Só ponto com exatamente 3 casas: separador de milhar pt-BR.
+    // "1.130" é R$ 1.130,00, não R$ 1,13. Sem isso o usuário digita
+    // o investimento da impressora e o sistema salva um valor 1000x menor.
+    s = s.replace(/\./g, '');
   }
   const n = parseFloat(s);
   return isFinite(n) ? n : 0;
@@ -86,11 +102,12 @@ function isBlank(v) {
 
 /**
  * Calcula o custo/hora da impressora.
- * @param {object} s cost settings
+ * @param {object} s cost settings (printer_watts em W, filament_price em R$/kg)
  * @returns {{hourly:number, energy:number, depreciation:number, maintenance:number, kwhPerHour:number, wattage:number, lifeHours:number}}
  */
 function machineHourlyCost(s) {
-  const kwhPerHour = toNum(s.printer_power);
+  const wattage = Math.max(0, toNum(s.printer_watts));
+  const kwhPerHour = wattage / 1000;
   const energyRate = toNum(s.energy_rate);
   const printerPrice = toNum(s.printer_price);
   const lifeHours = toNum(s.printer_life_hours) || 1;
@@ -106,7 +123,7 @@ function machineHourlyCost(s) {
     depreciation,
     maintenance,
     kwhPerHour,
-    wattage: Math.round(kwhPerHour * 1000),
+    wattage: Math.round(wattage),
     lifeHours
   };
 }
@@ -132,7 +149,8 @@ function calculateProductCost(input, s) {
 
   const grams = Math.max(0, toNum(input.filament_grams));
   const hours = Math.max(0, toNum(input.print_hours));
-  const filamentPrice = toNum(input.filament_price) || toNum(s.filament_price);
+  // filament_price do input, quando informado, é o preço efetivo por grama
+  const filamentPrice = toNum(input.filament_price) || filamentPerGram(s);
   const wastePct = Math.max(0, toNum(input.material_waste_pct));
 
   // Regra: campo vazio  -> usa o valor fixo (configurável em "Ajustar valores")
@@ -179,6 +197,7 @@ function calculateProductCost(input, s) {
     packaging_cost: round2(packaging),
     additional_cost: round2(additional),
     use_custom_packaging: packagingIsCustom ? 1 : 0,
+    use_custom_additional: additionalIsCustom ? 1 : 0,
     failure_rate: round2(failureRate * 100),
 
     // máquina
@@ -235,6 +254,8 @@ module.exports = {
   calculateProductCost,
   suggestPrice,
   currentMargin,
+  filamentPerGram,
+  printerKwhPerHour,
   toNum,
   round2,
   isBlank

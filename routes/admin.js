@@ -398,6 +398,18 @@ router.post('/products/save', mixedUpload.fields([
   }
 }));
 
+// ─── CALCULADORA DE CUSTO ─────────────────────────────────────────────────────
+
+// Aba avulsa: mesma calculadora do cadastro de produto, porém independente
+router.get('/calculator', asyncHandler(async (req, res) => {
+  const costSettings = await getCostSettings();
+  res.render('admin/calculator', {
+    costSettings,
+    machine: machineHourlyCost(costSettings),
+    blank: isBlank
+  });
+}));
+
 // ─── CUSTO DO PRODUTO ─────────────────────────────────────────────────────────
 
 // Recalcula o custo em tempo real (não salva). Usado pelo preview do formulário.
@@ -437,13 +449,15 @@ router.post('/products/save-cost', asyncHandler(async (req, res) => {
       await prepare(`UPDATE product_costs SET
         filament_grams=?, print_hours=?, filament_price=?, material_waste_pct=?,
         labor_hours=?, labor_rate=?, packaging_cost=?, additional_cost=?,
-        use_custom_packaging=?, failure_rate=?, material_cost=?, energy_cost=?,
+        use_custom_packaging=?, use_custom_additional=?,
+        failure_rate=?, material_cost=?, energy_cost=?,
         maintenance_cost=?, machine_hourly_cost=?, total_cost=?,
         updated_at=CURRENT_TIMESTAMP
         WHERE product_id=?`).run(
         calculated.filament_grams, calculated.print_hours, calculated.filament_price,
         calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
         calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
+        calculated.use_custom_additional,
         calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
         calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost,
         productId
@@ -452,11 +466,13 @@ router.post('/products/save-cost', asyncHandler(async (req, res) => {
       await prepare(`INSERT INTO product_costs
         (product_id, filament_grams, print_hours, filament_price, material_waste_pct,
          labor_hours, labor_rate, packaging_cost, additional_cost, use_custom_packaging,
-         failure_rate, material_cost, energy_cost, maintenance_cost, machine_hourly_cost, total_cost)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+         use_custom_additional, failure_rate, material_cost, energy_cost, maintenance_cost,
+         machine_hourly_cost, total_cost)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
         productId, calculated.filament_grams, calculated.print_hours, calculated.filament_price,
         calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
         calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
+        calculated.use_custom_additional,
         calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
         calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost
       );
@@ -478,26 +494,28 @@ router.post('/products/save-cost', asyncHandler(async (req, res) => {
 router.post('/cost-settings', asyncHandler(async (req, res) => {
   try {
     const allowed = [
-      'energy_rate', 'printer_power', 'printer_price', 'printer_life_hours',
+      'energy_rate', 'printer_watts', 'printer_price', 'printer_life_hours',
       'maintenance_hourly', 'packaging_cost', 'other_costs', 'filament_price',
-      'failure_rate', 'labor_rate'
+      'failure_rate', 'labor_rate', 'default_margin'
     ];
     const names = {
       energy_rate: 'Tarifa de Energia (kWh)',
-      printer_power: 'Consumo da Impressora (A1)',
+      printer_watts: 'Consumo da Impressora (A1)',
       printer_price: 'Investimento na Impressora',
       printer_life_hours: 'Vida Útil da Impressora',
       maintenance_hourly: 'Manutenção por Hora',
       packaging_cost: 'Custo de Embalagem',
       other_costs: 'Outros Custos',
-      filament_price: 'Preço do Filamento (por grama)',
+      filament_price: 'Preço do Filamento (carretel 1kg)',
       failure_rate: 'Taxa de Falha Padrão',
-      labor_rate: 'Valor da Minha Hora'
+      labor_rate: 'Valor da Minha Hora',
+      default_margin: 'Margem de Lucro Padrão'
     };
     const units = {
-      energy_rate: 'R$/kWh', printer_power: 'kWh/h', printer_price: 'R$',
+      energy_rate: 'R$/kWh', printer_watts: 'W', printer_price: 'R$',
       printer_life_hours: 'horas', maintenance_hourly: 'R$/h', packaging_cost: 'R$',
-      other_costs: 'R$', filament_price: 'R$/g', failure_rate: '%', labor_rate: 'R$/h'
+      other_costs: 'R$', filament_price: 'R$/kg', failure_rate: '%', labor_rate: 'R$/h',
+      default_margin: '%'
     };
 
     for (const key of allowed) {

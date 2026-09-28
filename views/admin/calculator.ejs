@@ -1,0 +1,30 @@
+<%- include('partials/header', { title: 'Calculadora de Custo' }) %>
+
+<div class="admin-content">
+  <%- include('partials/cost-calculator', {
+        isStandalone: true,
+        costData: null,
+        costSettings: costSettings,
+        machine: machine,
+        blank: blank
+      }) %>
+
+  <div class="calc-tips">
+    <h3><i class="fas fa-lightbulb"></i> Como usar</h3>
+    <ol>
+      <li>Em <b>Editar padrões</b>, confira a tarifa de luz, o consumo da impressora e o preço do carretel de filamento.</li>
+      <li>Preencha o <b>filamento usado</b> em gramas e as <b>horas de impressão</b> da peça.</li>
+      <li>O <b>custo real</b> já inclui suporte, purga e a taxa de falha.</li>
+      <li>Escolha a margem desejada e veja o <b>preço de venda</b> e o <b>lucro por peça</b>.</li>
+    </ol>
+    <p class="calc-tips-foot">
+      <i class="fas fa-circle-info"></i>
+      Para gravar o custo em um produto, use a calculadora dentro do
+      <a href="/admin/products">cadastro do produto</a> e clique em <b>Aplicar custo</b>.
+    </p>
+  </div>
+</div>
+
+<%- include('partials/footer') %>
+
+<%- include('partials/cost-calculator-scripts', { isStandalone: true }) %>

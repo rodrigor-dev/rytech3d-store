@@ -6,15 +6,16 @@ const isPg = () => !!process.env.DATABASE_URL;
 // Defaults do perfil de produção Bambu Lab A1 com AMS.
 const DEFAULT_COST_SETTING_ROWS = [
   ['energy_rate', 'Tarifa de Energia (kWh)', 1.13, 'R$/kWh', 'fixed'],
-  ['printer_power', 'Consumo da Impressora (A1)', 0.10, 'kWh/h', 'fixed'],
+  ['printer_watts', 'Consumo da Impressora (A1)', 180, 'W', 'fixed'],
   ['printer_price', 'Investimento na Impressora', 5500.00, 'R$', 'fixed'],
   ['printer_life_hours', 'Vida Útil da Impressora', 15000, 'horas', 'fixed'],
   ['maintenance_hourly', 'Manutenção por Hora', 0.05, 'R$/h', 'fixed'],
   ['packaging_cost', 'Custo de Embalagem', 3.00, 'R$', 'fixed'],
   ['other_costs', 'Outros Custos', 0.00, 'R$', 'fixed'],
-  ['filament_price', 'Preço do Filamento (por grama)', 0.10, 'R$/g', 'variable'],
+  ['filament_price', 'Preço do Filamento (carretel 1kg)', 130.00, 'R$/kg', 'variable'],
   ['failure_rate', 'Taxa de Falha Padrão', 10, '%', 'variable'],
-  ['labor_rate', 'Valor da Minha Hora', 0.00, 'R$/h', 'variable']
+  ['labor_rate', 'Valor da Minha Hora', 0.00, 'R$/h', 'variable'],
+  ['default_margin', 'Margem de Lucro Padrão', 40, '%', 'variable']
 ];
 
 const DEFAULT_COST_SETTING_META = DEFAULT_COST_SETTING_ROWS.map(([k, n, , u]) => [k, n, u]);
@@ -295,7 +296,8 @@ const SCHEMA = isPg() ? `
     filament_price REAL DEFAULT 0, material_waste_pct REAL DEFAULT 0,
     labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
     packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
-    use_custom_packaging INTEGER DEFAULT 0, failure_rate REAL DEFAULT 0,
+    use_custom_packaging INTEGER DEFAULT 0, use_custom_additional INTEGER DEFAULT 0,
+    failure_rate REAL DEFAULT 0,
     material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0,
     maintenance_cost REAL DEFAULT 0, machine_hourly_cost REAL DEFAULT 0,
     total_cost REAL DEFAULT 0,
@@ -383,7 +385,8 @@ const SCHEMA = isPg() ? `
     filament_price REAL DEFAULT 0, material_waste_pct REAL DEFAULT 0,
     labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
     packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
-    use_custom_packaging INTEGER DEFAULT 0, failure_rate REAL DEFAULT 0,
+    use_custom_packaging INTEGER DEFAULT 0, use_custom_additional INTEGER DEFAULT 0,
+    failure_rate REAL DEFAULT 0,
     material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0,
     maintenance_cost REAL DEFAULT 0, machine_hourly_cost REAL DEFAULT 0,
     total_cost REAL DEFAULT 0,
@@ -430,6 +433,7 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS machine_hourly_cost REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.machine_hourly_cost:', e.message); }
     try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS maintenance_cost REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.maintenance_cost:', e.message); }
     try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS use_custom_packaging INTEGER DEFAULT 0"); } catch (e) { console.log('pg migration pc.use_custom_packaging:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS use_custom_additional INTEGER DEFAULT 0"); } catch (e) { console.log('pg migration pc.use_custom_additional:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
     const initSqlJs = require('sql.js');
@@ -469,6 +473,7 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN machine_hourly_cost REAL DEFAULT 0"); } catch {}
     try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN maintenance_cost REAL DEFAULT 0"); } catch {}
     try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN use_custom_packaging INTEGER DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN use_custom_additional INTEGER DEFAULT 0"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }
@@ -538,14 +543,15 @@ async function initDatabase() {
       try { await cs.run(k, n, v, u, c); } catch {}
     }
 
-    // Migração dos valores semeados pelo perfil antigo (0.80/kWh, 0.3 "kWh", R$ 5, R$ 2)
+    // Migração dos valores semeados por versões anteriores do perfil.
     // Só substitui quando o valor ainda é o default antigo, preservando edições do usuário.
     // O wrapper SQLite não devolve `changes`, então conferimos o valor antes de atualizar.
     const legacy = [
-      ['energy_rate', 0.80, 1.13],
-      ['printer_power', 0.3, 0.10],
-      ['packaging_cost', 5.00, 3.00],
-      ['other_costs', 2.00, 0.00]
+      ['energy_rate', 0.80, 1.13],          // tarifa original
+      ['packaging_cost', 5.00, 3.00],       // embalagem original
+      ['other_costs', 2.00, 0.00],          // outros custos original
+      ['filament_price', 0.10, 130.00],     // era R$ 0,10/grama -> agora R$ 130/carretel
+      ['filament_price', 0.13, 130.00]      // também cobre ajuste manual equivalente
     ];
     const upd = await prepare('UPDATE cost_settings SET value = ? WHERE key = ? AND value = ?');
     let migrated = 0;
@@ -565,8 +571,28 @@ async function initDatabase() {
       try { await meta.run(n, u, k); } catch {}
     }
 
+    // A chave printer_power (kWh/h) foi substituída por printer_watts (W).
+    // 0,10 kWh/h era o valor SEMEADO pelo sistema, não uma escolha do usuário:
+    // migrá-lo literalmente para 100 W sobrescreveria o perfil atual de 180 W.
+    // Nesse caso assumimos os 180 W. Só convertemos se o valor foi
+    // customizado (diferente de 0,10), onde a conversão em watts é fiel.
+    try {
+      const oldPower = await prepare("SELECT value FROM cost_settings WHERE key = 'printer_power'").get();
+      if (oldPower) {
+        const oldV = Number(oldPower.value);
+        const hasWatts = await prepare("SELECT value FROM cost_settings WHERE key = 'printer_watts'").get();
+        const wattsStillDefault = !hasWatts || Number(hasWatts.value) === 180;
+        const watts = (oldV === 0.1) ? 180 : Math.round(oldV * 1000);
+        if (wattsStillDefault && watts > 0) {
+          await prepare("UPDATE cost_settings SET value = ? WHERE key = 'printer_watts'").run(watts);
+          migrated++;
+        }
+        await prepare("DELETE FROM cost_settings WHERE key = 'printer_power'").run();
+      }
+    } catch {}
+
     if (migrated > 0) {
-      console.log(`⚙️ ${migrated} configuração(ões) de custo migrada(s) para o perfil Bambu Lab A1`);
+      console.log(`⚙️ ${migrated} configuração(ões) de custo atualizada(s) para o perfil de produção`);
     }
   }
 
