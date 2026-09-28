@@ -78,6 +78,11 @@ function round2(n) {
   return Math.round((Number(n) + Number.EPSILON) * 100) / 100;
 }
 
+/** true quando o campo não foi preenchido (vazio, null ou undefined). */
+function isBlank(v) {
+  return v === null || v === undefined || (typeof v === 'string' && v.trim() === '');
+}
+
 /**
  * Calcula o custo/hora da impressora.
  * @param {object} s cost settings
@@ -128,12 +133,18 @@ function calculateProductCost(input, s) {
   const hours = Math.max(0, toNum(input.print_hours));
   const filamentPrice = toNum(input.filament_price) || toNum(s.filament_price);
   const wastePct = Math.max(0, toNum(input.material_waste_pct));
-  const useCustomPackaging = toNum(input.use_custom_packaging) === 1;
 
-  const packaging = useCustomPackaging
+  // Regra: campo vazio  -> usa o valor fixo (configurável em "Ajustar valores")
+  //       campo com número -> usa o valor deste produto (inclusive 0)
+  const packagingIsCustom = !isBlank(input.packaging_cost);
+  const additionalIsCustom = !isBlank(input.additional_cost);
+
+  const packaging = packagingIsCustom
     ? Math.max(0, toNum(input.packaging_cost))
     : toNum(s.packaging_cost);
-  const additional = Math.max(0, toNum(input.additional_cost)) || toNum(s.other_costs);
+  const additional = additionalIsCustom
+    ? Math.max(0, toNum(input.additional_cost))
+    : toNum(s.other_costs);
 
   const laborHours = Math.max(0, toNum(input.labor_hours));
   const laborRate = toNum(input.labor_rate) || toNum(s.labor_rate);
@@ -166,7 +177,7 @@ function calculateProductCost(input, s) {
     labor_rate: round2(laborRate),
     packaging_cost: round2(packaging),
     additional_cost: round2(additional),
-    use_custom_packaging: useCustomPackaging ? 1 : 0,
+    use_custom_packaging: packagingIsCustom ? 1 : 0,
     failure_rate: round2(failureRate * 100),
 
     // máquina
@@ -193,6 +204,8 @@ function calculateProductCost(input, s) {
       labor: round2(labor),
       packaging: round2(packaging),
       additional: round2(additional),
+      packagingCustom: packagingIsCustom,
+      additionalCustom: additionalIsCustom,
       subtotal: round2(subtotal),
       failureWaste: round2(total - subtotal),
       total: round2(total)
@@ -222,5 +235,6 @@ module.exports = {
   suggestPrice,
   currentMargin,
   toNum,
-  round2
+  round2,
+  isBlank
 };

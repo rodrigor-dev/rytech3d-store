@@ -16,7 +16,8 @@ const {
   suggestPrice,
   currentMargin,
   toNum,
-  round2
+  round2,
+  isBlank
 } = require('../cost-calculator');
 
 const sharp = require('sharp');
@@ -194,7 +195,7 @@ router.get('/products/new', asyncHandler(async (req, res) => {
   const machine = machineHourlyCost(costSettings);
   res.render('admin/product-form', {
     product: null, variations: [], error: null,
-    costData: null, costSettings, machine
+    costData: null, costSettings, machine, blank: isBlank
   });
 }));
 
@@ -211,7 +212,7 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
     try {
       costData = await prepare('SELECT * FROM product_costs WHERE product_id = ?').get(req.params.id);
     } catch (e) { /* tabela ainda não existia */ }
-    res.render('admin/product-form', { product, variations, error: null, costData, costSettings, machine });
+    res.render('admin/product-form', { product, variations, error: null, costData, costSettings, machine, blank: isBlank });
   } catch (err) {
     console.error('Erro ao carregar produto:', err);
     res.status(500).send('Erro ao carregar produto.');
@@ -391,7 +392,8 @@ router.post('/products/save', mixedUpload.fields([
       error: 'Erro ao salvar produto. Verifique os dados e tente novamente.',
       costData: null,
       costSettings: settings,
-      machine: machineHourlyCost(settings)
+      machine: machineHourlyCost(settings),
+      blank: isBlank
     });
   }
 }));

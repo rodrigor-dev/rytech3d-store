@@ -64,8 +64,9 @@
               const sv = costSettings || {};
               const mach = machine || {};
               const mq = (typeof margin !== 'undefined' && margin != null) ? margin : 0;
-              const n2 = (v, f) => { if (v === null || v === undefined || v === '') v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(2).replace('.', ','); };
-              const n3 = (v, f) => { if (v === null || v === undefined || v === '') v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(3).replace('.', ','); };
+              const isBlank = typeof blank === 'function' ? blank : (v => v === null || v === undefined || String(v).trim() === '');
+              const n2 = (v, f) => { if (isBlank(v)) v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(2).replace('.', ','); };
+              const n3 = (v, f) => { if (isBlank(v)) v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(3).replace('.', ','); };
             %>
 
             <!-- Resumo da máquina -->
@@ -160,21 +161,15 @@
             </div>
 
             <h4 class="cost-section-title">Outros custos <small>opcional</small></h4>
+            <p class="cost-hint cost-hint-block">Deixe em branco para usar o valor fixo. Preencha para customizar só neste produto.</p>
             <div class="cost-fields-grid">
               <label class="cost-field">
                 <span>Embalagem (R$)</span>
-                <input type="number" step="0.01" min="0" class="cost-input" id="c_packaging_cost" value="<%= cc.packaging_cost || '' %>" placeholder="<%= (sv.packaging_cost || 3).toFixed(2).replace('.', ',') %>">
+                <input type="number" step="0.01" min="0" class="cost-input" id="c_packaging_cost" value="<%= isBlank(cc.packaging_cost) ? '' : cc.packaging_cost %>" placeholder="fixo: <%= n2(sv.packaging_cost, 3) %>">
               </label>
               <label class="cost-field">
                 <span>Outros (R$)</span>
-                <input type="number" step="0.01" min="0" class="cost-input" id="c_additional_cost" value="<%= cc.additional_cost || 0 %>">
-              </label>
-            </div>
-
-            <div class="cost-custom-toggle">
-              <label class="checkbox-label">
-                <input type="checkbox" class="cost-input" id="c_use_custom_packaging" <%= cc.use_custom_packaging ? 'checked' : '' %>>
-                <span>Usar embalagem personalizada deste produto</span>
+                <input type="number" step="0.01" min="0" class="cost-input" id="c_additional_cost" value="<%= isBlank(cc.additional_cost) ? '' : cc.additional_cost %>" placeholder="fixo: <%= n2(sv.other_costs, 0) %>">
               </label>
             </div>
 
@@ -203,6 +198,7 @@
                   </div>
                 </div>
               </div>
+              <p class="cost-hint cost-origin" id="r_origin"></p>
               <div class="cost-suggest">
                 <label class="cost-field cost-suggest-field">
                   <span>Preço de venda para a margem desejada</span>
@@ -649,6 +645,7 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 
   // --- Coleta de dados ---
+  // Campos em branco são enviados como '' para que o servidor use o valor fixo.
   function collect() {
     return {
       filament_grams: num($('c_filament_grams').value),
@@ -657,9 +654,8 @@ document.addEventListener('DOMContentLoaded', function() {
       failure_rate: num($('c_failure_rate').value),
       labor_hours: num($('c_labor_hours').value),
       labor_rate: num($('c_labor_rate').value),
-      packaging_cost: num($('c_packaging_cost').value),
-      additional_cost: num($('c_additional_cost').value),
-      use_custom_packaging: $('c_use_custom_packaging').checked ? 1 : 0,
+      packaging_cost: $('c_packaging_cost').value.trim(),
+      additional_cost: $('c_additional_cost').value.trim(),
       target_margin: num($('c_target_margin').value),
       sale_price: num($('price').value)
     };
@@ -701,6 +697,14 @@ document.addEventListener('DOMContentLoaded', function() {
       $('mEnergy').textContent = d.machine.energy.toFixed(2).replace('.', ',');
       $('mWattage').textContent = d.machine.wattage;
     }
+
+    // Informa a origem dos custos fixos: padrão da loja ou customizado nesta peça
+    var orig = [];
+    if (b.packagingCustom) orig.push('embalagem customizada');
+    if (b.additionalCustom) orig.push('extras customizados');
+    $('r_origin').textContent = orig.length
+      ? 'Usando ' + orig.join(' e ') + ' nesta peça.'
+      : 'Embalagem e extras usando os valores fixos da loja.';
   }
 
   function setStatus(txt, kind) {

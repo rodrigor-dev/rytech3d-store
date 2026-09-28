@@ -2942,8 +2942,14 @@ img { max-width: 100%; height: auto; display: block; }
 
 .cost-tip { color: var(--text-muted); font-size: 0.7rem; cursor: help; }
 
-.cost-custom-toggle { margin-top: var(--sp-3); }
-.cost-custom-toggle .checkbox-label { font-size: var(--text-xs); }
+.cost-hint-block { margin: -4px 0 var(--sp-3); }
+
+.cost-origin {
+  margin-top: var(--sp-3);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
 
 .cost-hint {
   font-size: var(--text-xs);
