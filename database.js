@@ -3,6 +3,22 @@ const fs = require('fs');
 
 const isPg = () => !!process.env.DATABASE_URL;
 
+// Defaults do perfil de produção Bambu Lab A1 com AMS.
+const DEFAULT_COST_SETTING_ROWS = [
+  ['energy_rate', 'Tarifa de Energia (kWh)', 1.13, 'R$/kWh', 'fixed'],
+  ['printer_power', 'Consumo da Impressora (A1)', 0.10, 'kWh/h', 'fixed'],
+  ['printer_price', 'Investimento na Impressora', 5500.00, 'R$', 'fixed'],
+  ['printer_life_hours', 'Vida Útil da Impressora', 15000, 'horas', 'fixed'],
+  ['maintenance_hourly', 'Manutenção por Hora', 0.05, 'R$/h', 'fixed'],
+  ['packaging_cost', 'Custo de Embalagem', 3.00, 'R$', 'fixed'],
+  ['other_costs', 'Outros Custos', 0.00, 'R$', 'fixed'],
+  ['filament_price', 'Preço do Filamento (por grama)', 0.10, 'R$/g', 'variable'],
+  ['failure_rate', 'Taxa de Falha Padrão', 10, '%', 'variable'],
+  ['labor_rate', 'Valor da Minha Hora', 0.00, 'R$/h', 'variable']
+];
+
+const DEFAULT_COST_SETTING_META = DEFAULT_COST_SETTING_ROWS.map(([k, n, , u]) => [k, n, u]);
+
 let _sqlite = null;
 let _pool = null;
 let _txClient = null;
@@ -276,9 +292,13 @@ const SCHEMA = isPg() ? `
   CREATE TABLE IF NOT EXISTS product_costs (
     id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
     filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0,
-    filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0,
-    energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0,
-    additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+    filament_price REAL DEFAULT 0, material_waste_pct REAL DEFAULT 0,
+    labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
+    packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
+    use_custom_packaging INTEGER DEFAULT 0, failure_rate REAL DEFAULT 0,
+    material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0,
+    maintenance_cost REAL DEFAULT 0, machine_hourly_cost REAL DEFAULT 0,
+    total_cost REAL DEFAULT 0,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
   );
 ` : `
@@ -360,9 +380,13 @@ const SCHEMA = isPg() ? `
   CREATE TABLE IF NOT EXISTS product_costs (
     id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
     filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0,
-    filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0,
-    energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0,
-    additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+    filament_price REAL DEFAULT 0, material_waste_pct REAL DEFAULT 0,
+    labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
+    packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
+    use_custom_packaging INTEGER DEFAULT 0, failure_rate REAL DEFAULT 0,
+    material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0,
+    maintenance_cost REAL DEFAULT 0, machine_hourly_cost REAL DEFAULT 0,
+    total_cost REAL DEFAULT 0,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
@@ -398,6 +422,14 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0"); } catch (e) { console.log('pg migration order_items.cost_price:', e.message); }
     try { await _pool.query("CREATE TABLE IF NOT EXISTS cost_price_history (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, cost_price REAL NOT NULL DEFAULT 0, changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, note TEXT DEFAULT '')"); } catch (e) { console.log('pg migration cost_price_history:', e.message); }
     try { await _pool.query("CREATE TABLE IF NOT EXISTS order_edit_history (id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, admin_id INTEGER NOT NULL, field_name TEXT NOT NULL, old_value TEXT DEFAULT '', new_value TEXT DEFAULT '', reason TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"); } catch (e) { console.log('pg migration order_edit_history:', e.message); }
+    try { await _pool.query("CREATE TABLE IF NOT EXISTS product_costs (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"); } catch (e) { console.log('pg migration product_costs:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS material_waste_pct REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.material_waste_pct:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS labor_hours REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.labor_hours:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS labor_rate REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.labor_rate:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS failure_rate REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.failure_rate:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS machine_hourly_cost REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.machine_hourly_cost:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS maintenance_cost REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.maintenance_cost:', e.message); }
+    try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS use_custom_packaging INTEGER DEFAULT 0"); } catch (e) { console.log('pg migration pc.use_custom_packaging:', e.message); }
     console.log('✅ Schema PostgreSQL criado');
   } else {
     const initSqlJs = require('sql.js');
@@ -429,6 +461,14 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_data TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN video_mime TEXT DEFAULT NULL"); } catch {}
     try { _sqlite.exec("ALTER TABLE products ADD COLUMN main_media TEXT DEFAULT 'image'"); } catch {}
+    try { _sqlite.exec("CREATE TABLE IF NOT EXISTS product_costs (id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL, filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE)"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN material_waste_pct REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN labor_hours REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN labor_rate REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN failure_rate REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN machine_hourly_cost REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN maintenance_cost REAL DEFAULT 0"); } catch {}
+    try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN use_custom_packaging INTEGER DEFAULT 0"); } catch {}
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }
@@ -483,16 +523,51 @@ async function initDatabase() {
     await s.run('logo_url', '');
   }
 
-  // Seed default cost settings
+  // Seed default cost settings — Bambu Lab A1 profile
   const costSettingsCount = await prepare('SELECT COUNT(*) as count FROM cost_settings').get();
   if (costSettingsCount.count === 0) {
     const cs = await prepare('INSERT INTO cost_settings (key, name, value, unit, category) VALUES (?, ?, ?, ?, ?)');
-    await cs.run('energy_rate', 'Tarifa de Energia (kWh)', 0.80, 'R$/kWh', 'fixed');
-    await cs.run('printer_power', 'Consumo da Impressora', 0.3, 'kWh', 'fixed');
-    await cs.run('packaging_cost', 'Custo de Embalagem', 5.00, 'R$', 'fixed');
-    await cs.run('other_costs', 'Outros Custos Fixos', 2.00, 'R$', 'fixed');
-    await cs.run('filament_price', 'Preço do Filamento (por grama)', 0.10, 'R$/g', 'variable');
-    console.log('⚙️ Custos padrão criados');
+    for (const [k, n, v, u, c] of DEFAULT_COST_SETTING_ROWS) {
+      await cs.run(k, n, v, u, c);
+    }
+    console.log('⚙️ Custos padrão criados (perfil Bambu Lab A1)');
+  } else {
+    // Garante que as chaves do perfil A1 existam em bancos já instalados
+    const cs = await prepare('INSERT INTO cost_settings (key, name, value, unit, category) VALUES (?, ?, ?, ?, ?)');
+    for (const [k, n, v, u, c] of DEFAULT_COST_SETTING_ROWS) {
+      try { await cs.run(k, n, v, u, c); } catch {}
+    }
+
+    // Migração dos valores semeados pelo perfil antigo (0.80/kWh, 0.3 "kWh", R$ 5, R$ 2)
+    // Só substitui quando o valor ainda é o default antigo, preservando edições do usuário.
+    // O wrapper SQLite não devolve `changes`, então conferimos o valor antes de atualizar.
+    const legacy = [
+      ['energy_rate', 0.80, 1.13],
+      ['printer_power', 0.3, 0.10],
+      ['packaging_cost', 5.00, 3.00],
+      ['other_costs', 2.00, 0.00]
+    ];
+    const upd = await prepare('UPDATE cost_settings SET value = ? WHERE key = ? AND value = ?');
+    let migrated = 0;
+    for (const [k, oldV, newV] of legacy) {
+      try {
+        const current = await prepare('SELECT value FROM cost_settings WHERE key = ?').get(k);
+        if (current && Math.abs(Number(current.value) - oldV) < 1e-9) {
+          await upd.run(newV, k, oldV);
+          migrated++;
+        }
+      } catch {}
+    }
+
+    // Metadados (nome/unidade) coerentes com o perfil atual
+    const meta = await prepare('UPDATE cost_settings SET name = ?, unit = ? WHERE key = ?');
+    for (const [k, n, u] of DEFAULT_COST_SETTING_META) {
+      try { await meta.run(n, u, k); } catch {}
+    }
+
+    if (migrated > 0) {
+      console.log(`⚙️ ${migrated} configuração(ões) de custo migrada(s) para o perfil Bambu Lab A1`);
+    }
   }
 
   // Backfill image_data for existing products (files on disk -> database)

@@ -8,6 +8,16 @@ const path = require('path');
 const fs = require('fs');
 const { adminAuth, generateAdminToken } = require('../middleware/auth');
 const { getSettings } = require('../database');
+const {
+  DEFAULT_COST_SETTINGS,
+  getCostSettings,
+  machineHourlyCost,
+  calculateProductCost,
+  suggestPrice,
+  currentMargin,
+  toNum,
+  round2
+} = require('../cost-calculator');
 
 const sharp = require('sharp');
 
@@ -180,7 +190,12 @@ router.get('/products', asyncHandler(async (req, res) => {
 }));
 
 router.get('/products/new', asyncHandler(async (req, res) => {
-  res.render('admin/product-form', { product: null, variations: [], error: null });
+  const costSettings = await getCostSettings();
+  const machine = machineHourlyCost(costSettings);
+  res.render('admin/product-form', {
+    product: null, variations: [], error: null,
+    costData: null, costSettings, machine
+  });
 }));
 
 router.get('/products/edit/:id', asyncHandler(async (req, res) => {
@@ -190,7 +205,13 @@ router.get('/products/edit/:id', asyncHandler(async (req, res) => {
     const extraImages = await prepare('SELECT image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order').all(req.params.id);
     product.extraImages = extraImages;
     const variations = await prepare('SELECT * FROM product_variations WHERE product_id = ? ORDER BY sort_order ASC').all(req.params.id);
-    res.render('admin/product-form', { product, variations, error: null });
+    const costSettings = await getCostSettings();
+    const machine = machineHourlyCost(costSettings);
+    let costData = null;
+    try {
+      costData = await prepare('SELECT * FROM product_costs WHERE product_id = ?').get(req.params.id);
+    } catch (e) { /* tabela ainda não existia */ }
+    res.render('admin/product-form', { product, variations, error: null, costData, costSettings, machine });
   } catch (err) {
     console.error('Erro ao carregar produto:', err);
     res.status(500).send('Erro ao carregar produto.');
@@ -361,10 +382,135 @@ router.post('/products/save', mixedUpload.fields([
     res.redirect('/admin/products');
   } catch (err) {
     console.error('Erro ao salvar produto:', err);
+    let costSettings = null;
+    try { costSettings = await getCostSettings(); } catch (_) { costSettings = null; }
+    const settings = costSettings || DEFAULT_COST_SETTINGS;
     res.render('admin/product-form', {
       product: req.body,
-      error: 'Erro ao salvar produto. Verifique os dados e tente novamente.'
+      variations: [],
+      error: 'Erro ao salvar produto. Verifique os dados e tente novamente.',
+      costData: null,
+      costSettings: settings,
+      machine: machineHourlyCost(settings)
     });
+  }
+}));
+
+// ─── CUSTO DO PRODUTO ─────────────────────────────────────────────────────────
+
+// Recalcula o custo em tempo real (não salva). Usado pelo preview do formulário.
+router.post('/api/products/cost-preview', asyncHandler(async (req, res) => {
+  const settings = await getCostSettings();
+  const result = calculateProductCost(req.body || {}, settings);
+  const marginPct = toNum(req.body && req.body.target_margin);
+  const salePrice = toNum(req.body && req.body.sale_price);
+  result.machine = machineHourlyCost(settings);
+  result.suggested_price = suggestPrice(result.total_cost, marginPct);
+  result.current_margin = currentMargin(result.total_cost, salePrice);
+  res.json(result);
+}));
+
+// Salva a ficha de custo do produto e sincroniza products.cost_price
+router.post('/products/save-cost', asyncHandler(async (req, res) => {
+  try {
+    const productId = parseInt(req.body.product_id, 10);
+    if (!productId || isNaN(productId)) {
+      return res.status(400).json({ error: 'Produto inválido.' });
+    }
+
+    const exists = await prepare('SELECT id FROM products WHERE id = ?').get(productId);
+    if (!exists) return res.status(404).json({ error: 'Produto não encontrado.' });
+
+    const settings = await getCostSettings();
+    const calculated = calculateProductCost(req.body, settings);
+
+    const existing = await prepare('SELECT id FROM product_costs WHERE product_id = ?').get(productId);
+
+    if (existing) {
+      await prepare(`UPDATE product_costs SET
+        filament_grams=?, print_hours=?, filament_price=?, material_waste_pct=?,
+        labor_hours=?, labor_rate=?, packaging_cost=?, additional_cost=?,
+        use_custom_packaging=?, failure_rate=?, material_cost=?, energy_cost=?,
+        maintenance_cost=?, machine_hourly_cost=?, total_cost=?,
+        updated_at=CURRENT_TIMESTAMP
+        WHERE product_id=?`).run(
+        calculated.filament_grams, calculated.print_hours, calculated.filament_price,
+        calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
+        calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
+        calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
+        calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost,
+        productId
+      );
+    } else {
+      await prepare(`INSERT INTO product_costs
+        (product_id, filament_grams, print_hours, filament_price, material_waste_pct,
+         labor_hours, labor_rate, packaging_cost, additional_cost, use_custom_packaging,
+         failure_rate, material_cost, energy_cost, maintenance_cost, machine_hourly_cost, total_cost)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        productId, calculated.filament_grams, calculated.print_hours, calculated.filament_price,
+        calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
+        calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
+        calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
+        calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost
+      );
+    }
+
+    // Mantém products.cost_price em sincronia (usado nos relatórios de lucro)
+    await prepare('UPDATE products SET cost_price = ? WHERE id = ?').run(calculated.total_cost, productId);
+    await prepare('INSERT INTO cost_price_history (product_id, cost_price, note) VALUES (?, ?, ?)')
+      .run(productId, calculated.total_cost, 'Calculadora de custo 3D');
+
+    res.json({ success: true, cost: calculated, cost_price: calculated.total_cost });
+  } catch (err) {
+    console.error('Erro ao salvar custo do produto:', err);
+    res.status(500).json({ error: 'Erro ao salvar o custo. Tente novamente.' });
+  }
+}));
+
+// Salva as configurações globais de custo
+router.post('/cost-settings', asyncHandler(async (req, res) => {
+  try {
+    const allowed = [
+      'energy_rate', 'printer_power', 'printer_price', 'printer_life_hours',
+      'maintenance_hourly', 'packaging_cost', 'other_costs', 'filament_price',
+      'failure_rate', 'labor_rate'
+    ];
+    const names = {
+      energy_rate: 'Tarifa de Energia (kWh)',
+      printer_power: 'Consumo da Impressora (A1)',
+      printer_price: 'Investimento na Impressora',
+      printer_life_hours: 'Vida Útil da Impressora',
+      maintenance_hourly: 'Manutenção por Hora',
+      packaging_cost: 'Custo de Embalagem',
+      other_costs: 'Outros Custos',
+      filament_price: 'Preço do Filamento (por grama)',
+      failure_rate: 'Taxa de Falha Padrão',
+      labor_rate: 'Valor da Minha Hora'
+    };
+    const units = {
+      energy_rate: 'R$/kWh', printer_power: 'kWh/h', printer_price: 'R$',
+      printer_life_hours: 'horas', maintenance_hourly: 'R$/h', packaging_cost: 'R$',
+      other_costs: 'R$', filament_price: 'R$/g', failure_rate: '%', labor_rate: 'R$/h'
+    };
+
+    for (const key of allowed) {
+      if (req.body[key] === undefined || req.body[key] === '') continue;
+      const value = toNum(req.body[key]);
+      // O wrapper SQLite não devolve `changes`, então conferimos a existência da chave
+      const current = await prepare('SELECT id FROM cost_settings WHERE key = ?').get(key);
+      if (current) {
+        await prepare('UPDATE cost_settings SET value = ? WHERE key = ?').run(value, key);
+      } else {
+        await prepare('INSERT INTO cost_settings (key, name, value, unit, category) VALUES (?, ?, ?, ?, ?)')
+          .run(key, names[key], value, units[key], 'fixed');
+      }
+    }
+
+    const settings = await getCostSettings();
+    res.json({ success: true, settings, machine: machineHourlyCost(settings) });
+  } catch (err) {
+    console.error('Erro ao salvar configurações de custo:', err);
+    res.status(500).json({ error: 'Erro ao salvar as configurações.' });
   }
 }));
 
