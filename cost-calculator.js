@@ -40,7 +40,8 @@ const DEFAULT_COST_SETTINGS = {
   other_costs: 0.00,        // R$
   filament_price: 0.10,     // R$/g
   failure_rate: 10,         // %
-  labor_rate: 0.00          // R$/h
+  labor_rate: 0.00,         // R$/h
+  default_margin: 40        // % de lucro usada como sugestão inicial de venda
 };
 
 /** Lê todos os cost_settings, mesclando com os defaults. */

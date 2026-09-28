@@ -404,9 +404,14 @@ router.post('/products/save', mixedUpload.fields([
 router.post('/api/products/cost-preview', asyncHandler(async (req, res) => {
   const settings = await getCostSettings();
   const result = calculateProductCost(req.body || {}, settings);
-  const marginPct = toNum(req.body && req.body.target_margin);
+  // Sem margem informada, usa o padrão configurado — evita sugerir o próprio custo
+  const rawMargin = req.body && req.body.target_margin;
+  const marginPct = (rawMargin === undefined || rawMargin === null || rawMargin === '')
+    ? (Number(settings.default_margin) || 40)
+    : toNum(rawMargin);
   const salePrice = toNum(req.body && req.body.sale_price);
   result.machine = machineHourlyCost(settings);
+  result.target_margin = marginPct;
   result.suggested_price = suggestPrice(result.total_cost, marginPct);
   result.current_margin = currentMargin(result.total_cost, salePrice);
   res.json(result);

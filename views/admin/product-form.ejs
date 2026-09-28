@@ -63,7 +63,7 @@
               const cc = costData || {};
               const sv = costSettings || {};
               const mach = machine || {};
-              const mq = (typeof margin !== 'undefined' && margin != null) ? margin : 0;
+              const mq = (typeof margin !== 'undefined' && margin != null && margin !== '') ? margin : (Number(sv.default_margin) || 40);
               const isBlank = typeof blank === 'function' ? blank : (v => v === null || v === undefined || String(v).trim() === '');
               const n2 = (v, f) => { if (isBlank(v)) v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(2).replace('.', ','); };
               const n3 = (v, f) => { if (isBlank(v)) v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(3).replace('.', ','); };
@@ -200,13 +200,26 @@
               </div>
               <p class="cost-hint cost-origin" id="r_origin"></p>
               <div class="cost-suggest">
-                <label class="cost-field cost-suggest-field">
-                  <span>Preço de venda para a margem desejada</span>
-                  <input type="number" step="0.5" min="0" max="95" id="c_target_margin" value="<%= mq %>">
-                </label>
+                <div class="cost-suggest-input">
+                  <label class="cost-field cost-suggest-field" for="c_target_margin">
+                    <span>Margem de lucro desejada</span>
+                    <span class="cost-input-wrap">
+                      <input type="number" step="1" min="0" max="95" id="c_target_margin" value="<%= mq %>" inputmode="numeric">
+                      <i class="cost-input-suffix">%</i>
+                    </span>
+                  </label>
+                  <div class="cost-margin-presets" id="costMarginPresets">
+                    <button type="button" class="cost-preset" data-margin="20">20%</button>
+                    <button type="button" class="cost-preset" data-margin="30">30%</button>
+                    <button type="button" class="cost-preset" data-margin="40">40%</button>
+                    <button type="button" class="cost-preset" data-margin="50">50%</button>
+                    <button type="button" class="cost-preset" data-margin="60">60%</button>
+                  </div>
+                </div>
                 <div class="cost-suggest-out">
                   <span>Venda sugerida</span>
                   <strong id="r_suggested">R$ 0,00</strong>
+                  <small id="r_suggestedNote">para 40% de lucro</small>
                 </div>
               </div>
             </div>
@@ -673,6 +686,7 @@ document.addEventListener('DOMContentLoaded', function() {
     $('r_labor').textContent = fmtBRL(b.labor);
     $('r_extras').textContent = fmtBRL(b.packaging + b.additional);
     $('r_suggested').textContent = fmtBRL(d.suggested_price);
+    $('r_suggestedNote').textContent = 'para ' + d.target_margin + '% de lucro';
 
     var sale = num($('price').value);
     var profit = sale - d.total_cost;
@@ -735,6 +749,17 @@ document.addEventListener('DOMContentLoaded', function() {
       })
       .catch(function(err) { setStatus(err.message || 'Erro de conexão.', 'error'); });
     }, 180);
+  }
+
+  // --- Atalhos de margem ---
+  var presets = $('costMarginPresets');
+  if (presets) {
+    presets.addEventListener('click', function(e) {
+      var btn = e.target.closest('.cost-preset');
+      if (!btn) return;
+      $('c_target_margin').value = btn.getAttribute('data-margin');
+      recalc();
+    });
   }
 
   // --- Eventos dos campos ---
