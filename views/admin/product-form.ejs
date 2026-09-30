@@ -49,11 +49,7 @@
 
         <%- include('partials/cost-calculator', {
               isStandalone: false,
-              costData: costData,
-              costSettings: costSettings,
-              machine: machine,
-              blank: blank,
-              product: product
+              costData: costData
             }) %>
 
         <div class="form-group">
@@ -449,7 +445,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
   }
 });
-
-<%- include('partials/footer') %>
+</script>
 
 <%- include('partials/cost-calculator-scripts', { isStandalone: false, product: product }) %>
+
+<%- include('partials/footer') %>

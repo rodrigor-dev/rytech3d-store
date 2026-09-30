@@ -269,6 +269,21 @@ const SCHEMA = isPg() ? `
     cost_price REAL NOT NULL DEFAULT 0, changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     note TEXT DEFAULT ''
   );
+  CREATE TABLE IF NOT EXISTS cost_calculations (
+    id SERIAL PRIMARY KEY,
+    product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+    product_name TEXT NOT NULL,
+    origin TEXT NOT NULL DEFAULT 'draft',
+    filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0,
+    material_waste_pct REAL DEFAULT 0, labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
+    packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
+    use_custom_packaging INTEGER DEFAULT 0, use_custom_additional INTEGER DEFAULT 0,
+    failure_rate REAL DEFAULT 0, target_margin REAL DEFAULT 40,
+    material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, maintenance_cost REAL DEFAULT 0,
+    machine_hourly_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+    suggested_price REAL DEFAULT 0, sale_price REAL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  );
   CREATE TABLE IF NOT EXISTS admins (
     id SERIAL PRIMARY KEY, username TEXT NOT NULL UNIQUE,
     email TEXT DEFAULT '', password TEXT NOT NULL,
@@ -351,6 +366,19 @@ const SCHEMA = isPg() ? `
     note TEXT DEFAULT '',
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
+  CREATE TABLE IF NOT EXISTS cost_calculations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER,
+    product_name TEXT NOT NULL, origin TEXT NOT NULL DEFAULT 'draft',
+    filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0,
+    material_waste_pct REAL DEFAULT 0, labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
+    packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
+    use_custom_packaging INTEGER DEFAULT 0, use_custom_additional INTEGER DEFAULT 0,
+    failure_rate REAL DEFAULT 0, target_margin REAL DEFAULT 40,
+    material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, maintenance_cost REAL DEFAULT 0,
+    machine_hourly_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+    suggested_price REAL DEFAULT 0, sale_price REAL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
   CREATE TABLE IF NOT EXISTS product_variations (
     id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER NOT NULL,
     group_name TEXT NOT NULL, variation_name TEXT NOT NULL,
@@ -425,6 +453,18 @@ async function initDatabase() {
     try { await _pool.query("ALTER TABLE order_items ADD COLUMN IF NOT EXISTS cost_price REAL DEFAULT 0"); } catch (e) { console.log('pg migration order_items.cost_price:', e.message); }
     try { await _pool.query("CREATE TABLE IF NOT EXISTS cost_price_history (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, cost_price REAL NOT NULL DEFAULT 0, changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, note TEXT DEFAULT '')"); } catch (e) { console.log('pg migration cost_price_history:', e.message); }
     try { await _pool.query("CREATE TABLE IF NOT EXISTS order_edit_history (id SERIAL PRIMARY KEY, order_id INTEGER NOT NULL, admin_id INTEGER NOT NULL, field_name TEXT NOT NULL, old_value TEXT DEFAULT '', new_value TEXT DEFAULT '', reason TEXT DEFAULT '', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"); } catch (e) { console.log('pg migration order_edit_history:', e.message); }
+    try { await _pool.query(`CREATE TABLE IF NOT EXISTS cost_calculations (
+      id SERIAL PRIMARY KEY, product_id INTEGER REFERENCES products(id) ON DELETE SET NULL,
+      product_name TEXT NOT NULL, origin TEXT NOT NULL DEFAULT 'draft',
+      filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0,
+      material_waste_pct REAL DEFAULT 0, labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
+      packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
+      use_custom_packaging INTEGER DEFAULT 0, use_custom_additional INTEGER DEFAULT 0,
+      failure_rate REAL DEFAULT 0, target_margin REAL DEFAULT 40,
+      material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, maintenance_cost REAL DEFAULT 0,
+      machine_hourly_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+      suggested_price REAL DEFAULT 0, sale_price REAL DEFAULT 0,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)`); } catch (e) { console.log('pg migration cost_calculations:', e.message); }
     try { await _pool.query("CREATE TABLE IF NOT EXISTS product_costs (id SERIAL PRIMARY KEY, product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE, filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0, material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0, updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"); } catch (e) { console.log('pg migration product_costs:', e.message); }
     try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS material_waste_pct REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.material_waste_pct:', e.message); }
     try { await _pool.query("ALTER TABLE product_costs ADD COLUMN IF NOT EXISTS labor_hours REAL DEFAULT 0"); } catch (e) { console.log('pg migration pc.labor_hours:', e.message); }
@@ -474,6 +514,20 @@ async function initDatabase() {
     try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN maintenance_cost REAL DEFAULT 0"); } catch {}
     try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN use_custom_packaging INTEGER DEFAULT 0"); } catch {}
     try { _sqlite.exec("ALTER TABLE product_costs ADD COLUMN use_custom_additional INTEGER DEFAULT 0"); } catch {}
+    try {
+      _sqlite.exec(`CREATE TABLE IF NOT EXISTS cost_calculations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, product_id INTEGER,
+        product_name TEXT NOT NULL, origin TEXT NOT NULL DEFAULT 'draft',
+        filament_grams REAL DEFAULT 0, print_hours REAL DEFAULT 0, filament_price REAL DEFAULT 0,
+        material_waste_pct REAL DEFAULT 0, labor_hours REAL DEFAULT 0, labor_rate REAL DEFAULT 0,
+        packaging_cost REAL DEFAULT 0, additional_cost REAL DEFAULT 0,
+        use_custom_packaging INTEGER DEFAULT 0, use_custom_additional INTEGER DEFAULT 0,
+        failure_rate REAL DEFAULT 0, target_margin REAL DEFAULT 40,
+        material_cost REAL DEFAULT 0, energy_cost REAL DEFAULT 0, maintenance_cost REAL DEFAULT 0,
+        machine_hourly_cost REAL DEFAULT 0, total_cost REAL DEFAULT 0,
+        suggested_price REAL DEFAULT 0, sale_price REAL DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+    } catch (e) { console.log('sqlite migration cost_calculations:', e.message); }
     sqliteSave();
     console.log('✅ Schema SQLite criado');
   }
