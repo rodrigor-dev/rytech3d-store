@@ -905,6 +905,12 @@ img { max-width: 100%; height: auto; display: block; }
   margin-bottom: var(--sp-16);
 }
 
+/* Itens de grid tem min-width:auto (= min-content) por padrao. Sem zerar, uma
+   imagem larga infla a coluna e cria rolagem horizontal, espremendo o
+   conteudo. */
+.product-detail-image,
+.product-detail-info { min-width: 0; }
+
 .product-image-main {
   background: var(--bg-card);
   border-radius: var(--radius-lg);
@@ -2613,7 +2619,14 @@ img { max-width: 100%; height: auto; display: block; }
   .hero-title { font-size: var(--text-3xl); }
 
   .product-detail { grid-template-columns: 1fr; }
-  .product-image-main { height: 300px; }
+  /* altura fixa + cover cortavam a foto do produto no celular. A caixa passa a
+     seguir a largura da tela e a imagem entra inteira, sem corte. */
+  .product-image-main {
+    height: auto;
+    aspect-ratio: 4 / 5;
+    max-height: 62vh;
+  }
+  .product-image-main img { object-fit: contain; }
 
   .checkout-container { grid-template-columns: 1fr; }
   .cart-container { grid-template-columns: 1fr; }

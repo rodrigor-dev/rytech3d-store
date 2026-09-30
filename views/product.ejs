@@ -409,6 +409,12 @@ document.addEventListener('DOMContentLoaded', function() {
 .lightbox-thumbnails .lightbox-thumb:hover { opacity: 1; border-color: rgba(255,255,255,0.4); }
 
 @media (max-width: 768px) {
+  /* miniatura maior: era o unico jeito de ver as fotos quando a midia
+     principal e video */
+  .product-thumbnails { gap: 10px; }
+  .product-thumbnails .thumb { width: 72px; height: 72px; }
+  .product-detail-title { margin-top: var(--sp-2); }
+
   .lightbox-nav { width: 40px; height: 40px; font-size: 18px; }
   .lightbox-prev { left: 8px; }
   .lightbox-next { right: 8px; }
@@ -420,12 +426,37 @@ document.addEventListener('DOMContentLoaded', function() {
 
 .product-video { margin-top: 40px; }
 .product-video-main { margin-bottom: 12px; }
-.product-video-main .video-container { height: 520px; overflow: hidden; border-radius: var(--radius); background: #000; }
-.product-video-main .video-container iframe, .product-video-main .product-video-player { display: block; width: 100%; height: 100%; }
+
+/* A caixa do video principal nao pode depender so de altura fixa. A regra
+   .video-container logo abaixo usa padding-bottom: 56.25% (tecnica de
+   aspect-ratio); com box-sizing: border-box esse padding era descontado de
+   DENTRO da altura fixa de 520px/300px, e sobrava so ~200px no desktop e
+   ~100px no celular para o video. No celular ainda havia object-fit: cover,
+   que cortava o video. Aqui o padding e anulado e a caixa do celular passa a
+   seguir a largura da tela; em nenhum dos dois o conteudo e cortado. */
+.product-video-main .video-container {
+  height: 520px;
+  padding-bottom: 0;
+  max-height: 70vh;
+  background: #000;
+}
+.product-video-main .video-container iframe,
+.product-video-main .product-video-player {
+  display: block;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
 .product-video-main .product-video-player { object-fit: contain; background: #000; border-radius: var(--radius); }
 @media (max-width: 768px) {
-  .product-video-main .video-container { height: 300px; }
-  .product-video-main .product-video-player { object-fit: cover; }
+  .product-video-main .video-container {
+    height: auto;
+    aspect-ratio: 4 / 5;
+    max-height: 62vh;
+  }
+  /* contain, e nao cover: video gravado em retrato era cortado pela metade */
+  .product-video-main .product-video-player { object-fit: contain; }
 }
 .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius); background: var(--bg-card); }
 .video-container iframe, .product-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
