@@ -415,6 +415,21 @@ document.addEventListener('DOMContentLoaded', function() {
   .product-thumbnails .thumb { width: 72px; height: 72px; }
   .product-detail-title { margin-top: var(--sp-2); }
 
+  /* .btn usa white-space:nowrap, entao um rotulo longo ("Tirar Duvidas no
+     WhatsApp") estoura a largura do container. Aqui ele quebra. */
+  .product-detail-actions .btn,
+  .product-detail-whatsapp .btn { white-space: normal; max-width: 100%; }
+
+  /* nome de cor/ tamanho muito longo nao pode empurrar a linha */
+  .product-variations,
+  .variation-group,
+  .variation-options { min-width: 0; max-width: 100%; }
+  .variation-option { max-width: 100%; }
+  .variation-option span { max-width: 100%; overflow-wrap: break-word; }
+
+  .breadcrumb { flex-wrap: wrap; min-width: 0; }
+  .breadcrumb span { min-width: 0; overflow-wrap: break-word; }
+
   .lightbox-nav { width: 40px; height: 40px; font-size: 18px; }
   .lightbox-prev { left: 8px; }
   .lightbox-next { right: 8px; }
@@ -427,36 +442,34 @@ document.addEventListener('DOMContentLoaded', function() {
 .product-video { margin-top: 40px; }
 .product-video-main { margin-bottom: 12px; }
 
-/* A caixa do video principal nao pode depender so de altura fixa. A regra
-   .video-container logo abaixo usa padding-bottom: 56.25% (tecnica de
-   aspect-ratio); com box-sizing: border-box esse padding era descontado de
-   DENTRO da altura fixa de 520px/300px, e sobrava so ~200px no desktop e
-   ~100px no celular para o video. No celular ainda havia object-fit: cover,
-   que cortava o video. Aqui o padding e anulado e a caixa do celular passa a
-   seguir a largura da tela; em nenhum dos dois o conteudo e cortado. */
+/* Mesma regra da imagem principal: nada de altura fixa, aspect-ratio rigido ou
+   posicionamento absoluto na caixa principal. O <video> entra no fluxo com a
+   propria proporcao (width:100% + height:auto), entao nao e cortado nem
+   distorcido. iframe do YouTube precisa de uma proporcao porque nao tem
+   dimensao intrinseca - 16/9 e o padrao, e ainda assim sem corte. */
 .product-video-main .video-container {
-  height: 520px;
+  position: static;
+  height: auto;
   padding-bottom: 0;
-  max-height: 70vh;
+  overflow: visible;
   background: #000;
 }
-.product-video-main .video-container iframe,
 .product-video-main .product-video-player {
+  position: static;
   display: block;
-  position: absolute;
-  inset: 0;
   width: 100%;
-  height: 100%;
+  height: auto;
+  object-fit: contain;
+  background: #000;
+  border-radius: var(--radius);
 }
-.product-video-main .product-video-player { object-fit: contain; background: #000; border-radius: var(--radius); }
-@media (max-width: 768px) {
-  .product-video-main .video-container {
-    height: auto;
-    aspect-ratio: 4 / 5;
-    max-height: 62vh;
-  }
-  /* contain, e nao cover: video gravado em retrato era cortado pela metade */
-  .product-video-main .product-video-player { object-fit: contain; }
+.product-video-main iframe {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  border: 0;
+  border-radius: var(--radius);
 }
 .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: var(--radius); background: var(--bg-card); }
 .video-container iframe, .product-video-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }

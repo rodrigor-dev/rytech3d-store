@@ -911,18 +911,21 @@ img { max-width: 100%; height: auto; display: block; }
 .product-detail-image,
 .product-detail-info { min-width: 0; }
 
+/* A caixa nao tem altura fixa nem aspect-ratio rigido: a imagem define a
+   altura, entao qualquer proporcao (retrato, paisagem, quadrada) entra
+   inteira. O overflow:hidden foi REMOVIDO - a borda arredondada vai na
+   propria imagem, que cabe exatamente na caixa. */
 .product-image-main {
   background: var(--bg-card);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  border: 1px solid var(--border);
-  height: 450px;
 }
 
 .product-image-main img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
+  display: block;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
 }
 
 .product-detail-title {
@@ -930,6 +933,7 @@ img { max-width: 100%; height: auto; display: block; }
   font-size: clamp(1.5rem, 3vw, 2rem);
   letter-spacing: -0.5px;
   margin: var(--sp-3) 0 var(--sp-4);
+  overflow-wrap: break-word;
 }
 
 .product-detail-price {
@@ -959,7 +963,12 @@ img { max-width: 100%; height: auto; display: block; }
   display: flex;
   gap: var(--sp-3);
   align-items: flex-start;
+  min-width: 0;
 }
+
+/* o texto do card precisa poder encolher, senao uma frase longa empurra o
+   card para fora da tela */
+.meta-item > div { min-width: 0; overflow-wrap: break-word; }
 
 .meta-item i {
   font-size: 1.1rem;
@@ -990,6 +999,7 @@ img { max-width: 100%; height: auto; display: block; }
 .product-detail-desc p {
   color: var(--text-secondary);
   line-height: 1.7;
+  overflow-wrap: break-word;
 }
 
 .product-detail-actions {
@@ -2579,7 +2589,6 @@ img { max-width: 100%; height: auto; display: block; }
   .hero-visual { display: none; }
   .hero-title { font-size: var(--text-3xl); }
   .product-detail { grid-template-columns: 1fr; }
-  .product-image-main { height: 300px; }
   .checkout-container { grid-template-columns: 1fr; }
   .cart-container { grid-template-columns: 1fr; }
   .order-detail-grid { grid-template-columns: 1fr; }
@@ -2619,14 +2628,8 @@ img { max-width: 100%; height: auto; display: block; }
   .hero-title { font-size: var(--text-3xl); }
 
   .product-detail { grid-template-columns: 1fr; }
-  /* altura fixa + cover cortavam a foto do produto no celular. A caixa passa a
-     seguir a largura da tela e a imagem entra inteira, sem corte. */
-  .product-image-main {
-    height: auto;
-    aspect-ratio: 4 / 5;
-    max-height: 62vh;
-  }
-  .product-image-main img { object-fit: contain; }
+  /* nada aqui: a imagem principal ja vem sem altura fixa nem aspect-ratio
+    rigido na regra base, entao nao precisa de override por breakpoint. */
 
   .checkout-container { grid-template-columns: 1fr; }
   .cart-container { grid-template-columns: 1fr; }
