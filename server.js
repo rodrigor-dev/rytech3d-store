@@ -52,6 +52,22 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public'), { maxAge: '7d', etag: true }));
 
+let assetVersionCache = null;
+Object.defineProperty(app.locals, 'assetVersion', {
+  enumerable: true,
+  get() {
+    if (assetVersionCache === null) {
+      try {
+        const cssStat = fs.statSync(path.join(__dirname, 'public', 'css', 'style.css'));
+        assetVersionCache = String(Math.floor(cssStat.mtimeMs));
+      } catch (err) {
+        assetVersionCache = '0';
+      }
+    }
+    return assetVersionCache;
+  }
+});
+
 const fileCache = new Map();
 const FILE_CACHE_MAX = 100;
 
