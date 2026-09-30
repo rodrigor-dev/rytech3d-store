@@ -5,44 +5,31 @@
        machine       – resumo do custo/hora
        costData      – ficha salva do produto (opcional)
        isStandalone  – true na aba /admin/calculator
-       products      – produtos cadastrados (só na aba avulsa)
-       history       – histórico de cálculos (só na aba avulsa) */
+       blank         – helper isBlank do cost-calculator */
   const cc = costData || {};
   const sv = costSettings || {};
   const mach = machine || {};
   const standalone = (typeof isStandalone !== 'undefined' && isStandalone) ? true : false;
-  const prodList = (typeof products !== 'undefined' && Array.isArray(products)) ? products : [];
-  const histList = (typeof history !== 'undefined' && Array.isArray(history)) ? history : [];
   const n2 = (v, f) => { if (v === null || v === undefined || v === '') v = (f || 0); const x = Number(v); return (isFinite(x) ? x : (f || 0)).toFixed(2).replace('.', ','); };
   const nInt = (v, f) => { if (v === null || v === undefined || v === '') v = (f || 0); const x = Number(v); return String(Math.round(isFinite(x) ? x : (f || 0))); };
   const mq = (typeof margin !== 'undefined' && margin !== null && margin !== '') ? margin : (Number(sv.default_margin) || 40);
   const perGram = Number(sv.filament_price) > 0 ? (Number(sv.filament_price) / 1000) : 0;
-  const hasSheet = !!(cc && Object.keys(cc).length);
-  /* O banco guarda o valor JÁ RESOLVIDO (ex.: 3,00 do padrão da loja) mais a
-     flag use_custom_*. Usar isBlank() aqui mostraria o padrão como se fosse
-     customização, e salvar fixaria o valor antigo para sempre neste produto. */
-  const packCustom = hasSheet && !!cc.use_custom_packaging;
-  const addCustom = hasSheet && !!cc.use_custom_additional;
-  const b = (v) => 'R$ ' + Number(v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 %>
-
 <% if (standalone) { %>
-  <!-- Cabeçalho da página -->
+  <!-- Page header -->
   <div class="calc-hero">
     <div class="calc-hero-text">
-      <span class="calc-hero-badge"><i class="fas fa-calculator"></i> Precificação de produção</span>
+      <span class="calc-hero-badge"><i class="fas fa-calculator"></i> Custo real de produção</span>
       <h1>Calculadora de Custo 3D</h1>
-      <p>Descubra o custo real de cada peça, aplique no produto cadastrado ou guarde o cálculo de uma peça ainda não lançada.</p>
+      <p>Descubra quanto custa produzir cada peça e por quanto vender com lucro.</p>
     </div>
-    <div class="calc-hero-actions">
-      <button type="button" class="btn btn-outline" id="costEditSettings">
-        <i class="fas fa-sliders-h"></i> <span>Valores da produção</span>
-      </button>
-    </div>
+    <button type="button" class="btn btn-outline calc-hero-edit" id="costEditSettings">
+      <i class="fas fa-sliders-h"></i> Editar padrões
+    </button>
   </div>
 <% } else { %>
   <div class="cost-calc" id="costCalc">
-    <button type="button" class="cost-calc-toggle" id="costCalcToggle" aria-expanded="<%= hasSheet ? 'true' : 'false' %>">
+    <button type="button" class="cost-calc-toggle" id="costCalcToggle" aria-expanded="<%= cc && Object.keys(cc).length ? 'true' : 'false' %>">
       <span class="cost-calc-toggle-icon"><i class="fas fa-calculator"></i></span>
       <span class="cost-calc-toggle-text">
         <strong>Calculadora de Custo de Produção</strong>
@@ -52,175 +39,26 @@
     </button>
 <% } %>
 
-<div class="cost-calc-panel" id="costCalcPanel" <%= (!standalone && !hasSheet) ? 'hidden' : '' %>>
-
+<div class="cost-calc-panel" id="costCalcPanel" <%= (!standalone && !(cc && Object.keys(cc).length)) ? 'hidden' : '' %>>
   <% if (standalone) { %>
     <div class="calc-panel-head">
-      <h2><i class="fas fa-list-check"></i> Preencha em 3 etapas e veja o resultado</h2>
+      <h2><i class="fas fa-sliders-h"></i> Valores fixos da produção</h2>
       <button type="button" class="btn btn-outline btn-small" id="costEditSettingsMobile">
-        <i class="fas fa-pen"></i> Valores fixos
+        <i class="fas fa-pen"></i> Editar
       </button>
     </div>
   <% } %>
 
-  <!-- ETAPA 0 (só avulsa): para onde vai o cálculo -->
-  <% if (standalone) { %>
-  <section class="calc-step calc-step-target">
-    <div class="calc-step-head">
-      <span class="calc-step-num">1</span>
-      <div>
-        <h3>Para onde vai este cálculo?</h3>
-        <p>Escolha um produto que já está cadastrado para gravar o custo nele, ou dê um nome para uma peça que ainda não existe.</p>
-      </div>
-    </div>
-
-    <div class="calc-target" role="radiogroup" aria-label="Destino do cálculo">
-      <label class="calc-target-opt">
-        <input type="radio" name="costTarget" value="product" id="costTargetProduct" <%= standalone ? '' : '' %>>
-        <span class="calc-target-card">
-          <i class="fas fa-box"></i>
-          <b>Produto cadastrado</b>
-          <small>Aplica e salva o custo no produto selecionado</small>
-        </span>
-      </label>
-      <label class="calc-target-opt">
-        <input type="radio" name="costTarget" value="draft" id="costTargetDraft" checked>
-        <span class="calc-target-card">
-          <i class="fas fa-pen-to-square"></i>
-          <b>Peça não cadastrada</b>
-          <small>Dê um nome e guarde no histórico</small>
-        </span>
-      </label>
-    </div>
-
-    <div class="calc-target-fields" id="costProductField" hidden>
-      <label class="calc-label" for="costProductSelect">Produto</label>
-      <div class="calc-select-wrap">
-        <select id="costProductSelect">
-          <option value="">Selecione um produto…</option>
-          <% prodList.forEach((p) => { %>
-            <option value="<%= p.id %>"><%= p.name %><%= Number(p.cost_price) > 0 ? '  (custo atual ' + b(p.cost_price) + ')' : '' %></option>
-          <% }); %>
-        </select>
-        <i class="fas fa-chevron-down calc-select-icon"></i>
-      </div>
-      <p class="calc-help" id="costProductHelp">
-        <i class="fas fa-circle-info"></i>
-        Escolha o produto e a ficha de custo salva nele é carregada automaticamente, se existir.
-      </p>
-    </div>
-
-    <div class="calc-target-fields" id="costDraftField">
-      <label class="calc-label" for="costDraftName">Nome do produto</label>
-      <input type="text" id="costDraftName" placeholder="Ex: Suporte de Monitor 3D" maxlength="160" autocomplete="off">
-      <p class="calc-help">
-        <i class="fas fa-circle-info"></i>
-        Este cálculo fica salvo no histórico, mesmo que a peça não exista ainda no catálogo.
-      </p>
-    </div>
-  </section>
-  <% } %>
-
-  <!-- ETAPA: a peça -->
-  <section class="calc-step">
-    <div class="calc-step-head">
-      <span class="calc-step-num"><%= standalone ? '2' : '1' %></span>
-      <div>
-        <h3>A peça</h3>
-        <p>Quanto de filamento a peça usa e quanto tempo leva para imprimir.</p>
-      </div>
-    </div>
-    <div class="calc-fields-grid">
-      <label class="calc-field">
-        <span class="calc-label">Filamento usado (g)</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_filament_grams" value="<%= cc.filament_grams || '' %>" placeholder="Ex: 85">
-          <i class="calc-suffix">g</i>
-        </span>
-        <small class="calc-tip">Peso final da peça. Suporte e purga entram no desperdício abaixo.</small>
-      </label>
-      <label class="calc-field">
-        <span class="calc-label">Horas de impressão</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_print_hours" value="<%= cc.print_hours || '' %>" placeholder="Ex: 3,5">
-          <i class="calc-suffix">h</i>
-        </span>
-        <small class="calc-tip">Tempo real do início ao fim, conforme o fatiador.</small>
-      </label>
-      <label class="calc-field">
-        <span class="calc-label">Desperdício / suporte (%)</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_material_waste_pct" value="<%= n2(cc.material_waste_pct, 0) %>" placeholder="0">
-          <i class="calc-suffix">%</i>
-        </span>
-        <small class="calc-tip">Bicos, brim, purge e peças que falham no suporte.</small>
-      </label>
-      <label class="calc-field">
-        <span class="calc-label">Taxa de falha (%)</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="numeric" class="cost-input" id="c_failure_rate" value="<%= cc.failure_rate != null ? n2(cc.failure_rate) : '' %>" placeholder="<%= n2(sv.failure_rate, 10) %>">
-          <i class="calc-suffix">%</i>
-        </span>
-        <small class="calc-tip">Em branco usa o padrão da loja (<%= n2(sv.failure_rate, 10) %>%). Repete a peça para recuperar o custo.</small>
-      </label>
-    </div>
-  </section>
-
-  <!-- ETAPA: acabamento e outros -->
-  <section class="calc-step">
-    <div class="calc-step-head">
-      <span class="calc-step-num"><%= standalone ? '3' : '2' %></span>
-      <div>
-        <h3>Acabamento e outros custos <em>opcional</em></h3>
-        <p>Lixamento, pintura, embalagem e o que mais entrar na conta.</p>
-      </div>
-    </div>
-    <div class="calc-fields-grid">
-      <label class="calc-field">
-        <span class="calc-label">Horas de acabamento</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_labor_hours" value="<%= n2(cc.labor_hours, 0) %>" placeholder="0">
-          <i class="calc-suffix">h</i>
-        </span>
-        <small class="calc-tip">Lixar, pintar, remover suportes.</small>
-      </label>
-      <label class="calc-field">
-        <span class="calc-label">Valor da sua hora (R$)</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_labor_rate" value="<%= n2(cc.labor_rate, 0) %>" placeholder="<%= n2(sv.labor_rate, 0) %>">
-          <i class="calc-suffix">R$/h</i>
-        </span>
-        <small class="calc-tip">Em branco usa o padrão da loja.</small>
-      </label>
-      <label class="calc-field">
-        <span class="calc-label">Embalagem (R$)</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_packaging_cost" value="<%= packCustom ? cc.packaging_cost : '' %>" placeholder="padrão <%= n2(sv.packaging_cost, 3) %>">
-          <i class="calc-suffix">R$</i>
-        </span>
-        <small class="calc-tip">Caixa, sacola, fita. Vazio = padrão da loja.</small>
-      </label>
-      <label class="calc-field">
-        <span class="calc-label">Outros custos (R$)</span>
-        <span class="calc-input-wrap">
-          <input type="text" inputmode="decimal" class="cost-input" id="c_additional_cost" value="<%= addCustom ? cc.additional_cost : '' %>" placeholder="padrão <%= n2(sv.other_costs, 0) %>">
-          <i class="calc-suffix">R$</i>
-        </span>
-        <small class="calc-tip">Adubo, cavo, rótulo, tudo que não seja a peça em si. Vazio = padrão da loja.</small>
-      </label>
-    </div>
-  </section>
-
-  <!-- Máquina: leitura dos valores fixos -->
-  <div class="calc-machine" id="costMachineBar">
-    <div class="calc-machine-head">
+  <!-- Resumo da máquina -->
+  <div class="cost-machine-bar">
+    <div class="cost-machine-bar-head">
       <i class="fas fa-print"></i>
       <span>Sua impressora</span>
       <% if (!standalone) { %>
         <button type="button" class="cost-link-btn" id="costEditSettings">Ajustar valores</button>
       <% } %>
     </div>
-    <div class="calc-machine-grid">
+    <div class="cost-machine-grid">
       <div><b id="mWattage"><%= nInt(mach.wattage, 0) %></b><span>watts</span></div>
       <div><b id="mHourly"><%= n2(mach.hourly) %></b><span>R$/hora</span></div>
       <div><b id="mDep"><%= n2(mach.depreciation) %></b><span>depreciação/h</span></div>
@@ -274,19 +112,12 @@
           <input type="text" inputmode="decimal" id="s_filament_price" value="<%= n2(sv.filament_price, 130) %>">
           <i class="cost-input-suffix">R$/kg</i>
         </span>
-        <small class="cost-unit-hint">equivale a <b id="s_filament_pergram"><%= b(perGram) %></b> por grama</small>
+        <small class="cost-unit-hint">equivale a <b id="s_filament_pergram">R$ <%= n2(perGram) %></b> por grama</small>
       </label>
       <label class="cost-field">
         <span>Embalagem (R$)</span>
         <span class="cost-input-wrap">
           <input type="text" inputmode="decimal" id="s_packaging_cost" value="<%= n2(sv.packaging_cost, 3) %>">
-          <i class="cost-input-suffix">R$</i>
-        </span>
-      </label>
-      <label class="cost-field">
-        <span>Outros custos fixos (R$)</span>
-        <span class="cost-input-wrap">
-          <input type="text" inputmode="decimal" id="s_other_costs" value="<%= n2(sv.other_costs, 0) %>">
           <i class="cost-input-suffix">R$</i>
         </span>
       </label>
@@ -305,6 +136,13 @@
         </span>
       </label>
       <label class="cost-field">
+        <span>Outros custos fixos (R$)</span>
+        <span class="cost-input-wrap">
+          <input type="text" inputmode="decimal" id="s_other_costs" value="<%= n2(sv.other_costs, 0) %>">
+          <i class="cost-input-suffix">R$</i>
+        </span>
+      </label>
+      <label class="cost-field">
         <span>Margem de lucro padrão (%)</span>
         <span class="cost-input-wrap">
           <input type="text" inputmode="numeric" id="s_default_margin" value="<%= nInt(sv.default_margin, 40) %>">
@@ -320,140 +158,149 @@
     </div>
   </div>
 
-  <!-- RESULTADO -->
-  <section class="calc-result" id="costResult">
-    <div class="calc-result-top">
-      <div>
-        <span class="calc-result-step"><%= standalone ? '4' : '3' %> &#183; resultado</span>
-        <span class="calc-result-label">Custo real por peça</span>
-        <strong class="calc-result-total" id="r_total">R$ 0,00</strong>
-        <span class="calc-result-note" id="r_profitNote">Preencha as etapas acima para calcular</span>
-      </div>
+  <!-- Entradas da peça -->
+  <h4 class="cost-section-title">A peça</h4>
+  <div class="cost-fields-grid">
+    <label class="cost-field">
+      <span>Filamento usado (g) <i class="fas fa-circle-info cost-tip" title="Peso final da peça. O suporte e a purga entram no desperdício abaixo."></i></span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_filament_grams" value="<%= cc.filament_grams || '' %>" placeholder="Ex: 85">
+        <i class="cost-input-suffix">g</i>
+      </span>
+    </label>
+    <label class="cost-field">
+      <span>Horas de impressão <i class="fas fa-circle-info cost-tip" title="Tempo real de impressão, do início ao fim, conforme o fatiador."></i></span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_print_hours" value="<%= cc.print_hours || '' %>" placeholder="Ex: 3,5">
+        <i class="cost-input-suffix">h</i>
+      </span>
+    </label>
+    <label class="cost-field">
+      <span>Desperdício / suporte (%)</span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_material_waste_pct" value="<%= n2(cc.material_waste_pct, 0) %>">
+        <i class="cost-input-suffix">%</i>
+      </span>
+    </label>
+    <label class="cost-field">
+      <span>Taxa de falha (%)</span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="numeric" class="cost-input" id="c_failure_rate" value="<%= cc.failure_rate != null ? n2(cc.failure_rate) : '' %>" placeholder="<%= n2(sv.failure_rate, 10) %>">
+        <i class="cost-input-suffix">%</i>
+      </span>
+    </label>
+  </div>
+
+  <h4 class="cost-section-title">Acabamento <small>opcional</small></h4>
+  <div class="cost-fields-grid">
+    <label class="cost-field">
+      <span>Horas de acabamento</span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_labor_hours" value="<%= n2(cc.labor_hours, 0) %>">
+        <i class="cost-input-suffix">h</i>
+      </span>
+    </label>
+    <label class="cost-field">
+      <span>Valor da hora (R$)</span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_labor_rate" value="<%= n2(cc.labor_rate, 0) %>">
+        <i class="cost-input-suffix">R$/h</i>
+      </span>
+    </label>
+  </div>
+
+  <h4 class="cost-section-title">Outros custos <small>opcional</small></h4>
+  <p class="cost-hint cost-hint-block">Deixe em branco para usar o valor fixo. Preencha para customizar só nesta peça.</p>
+  <%
+    /* O banco guarda o valor JÁ RESOLVIDO (ex.: 3,00 do padrão da loja) mais a
+       flag use_custom_*. Usar isBlank() aqui mostraria o padrão como se fosse
+       customization, e salvar fixaria o valor antigo para sempre neste produto,
+       ignorando future changes nos padrões da loja. */
+    const packCustom = !!(standalone ? 0 : cc.use_custom_packaging);
+    const addCustom = !!(standalone ? 0 : cc.use_custom_additional);
+  %>
+  <div class="cost-fields-grid">
+    <label class="cost-field">
+      <span>Embalagem (R$)</span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_packaging_cost" value="<%= packCustom ? cc.packaging_cost : '' %>" placeholder="padrão <%= n2(sv.packaging_cost, 3) %>">
+        <i class="cost-input-suffix">R$</i>
+      </span>
+    </label>
+    <label class="cost-field">
+      <span>Outros (R$)</span>
+      <span class="cost-input-wrap">
+        <input type="text" inputmode="decimal" class="cost-input" id="c_additional_cost" value="<%= addCustom ? cc.additional_cost : '' %>" placeholder="padrão <%= n2(sv.other_costs, 0) %>">
+        <i class="cost-input-suffix">R$</i>
+      </span>
+    </label>
+  </div>
+
+  <!-- Resultado -->
+  <div class="cost-result" id="costResult">
+    <div class="cost-result-main">
+      <span class="cost-result-label">Custo real por peça</span>
+      <strong id="r_total">R$ 0,00</strong>
+      <span class="cost-result-note" id="r_profitNote">Informe filamento e horas para calcular</span>
     </div>
-
-    <div class="calc-breakdown" id="r_breakdown">
-      <div class="calc-chip"><span>Material</span><b id="r_material">R$ 0,00</b></div>
-      <div class="calc-chip"><span>Máquina</span><b id="r_machine">R$ 0,00</b></div>
-      <div class="calc-chip"><span>Acabamento</span><b id="r_labor">R$ 0,00</b></div>
-      <div class="calc-chip"><span>Embalagem + extras</span><b id="r_extras">R$ 0,00</b></div>
-    </div>
-
-    <div class="calc-margin-row">
-      <div class="calc-profit">
-        <span>Lucro por peça</span>
-        <b id="r_profit">—</b>
+    <div class="cost-result-grid">
+      <div class="cost-chips">
+        <div class="cost-chip"><span>Material</span><b id="r_material">R$ 0,00</b></div>
+        <div class="cost-chip"><span>Máquina</span><b id="r_machine">R$ 0,00</b></div>
+        <div class="cost-chip"><span>Mão de obra</span><b id="r_labor">R$ 0,00</b></div>
+        <div class="cost-chip"><span>Embalagem + extras</span><b id="r_extras">R$ 0,00</b></div>
       </div>
-      <div class="calc-profit">
-        <span>Margem atual</span>
-        <b id="r_margin">—</b>
-      </div>
-    </div>
-
-    <p class="cost-hint cost-origin" id="r_origin"></p>
-
-    <div class="calc-suggest">
-      <div class="calc-suggest-input">
-        <label class="calc-field" for="c_target_margin">
-          <span class="calc-label">Margem de lucro desejada</span>
-          <span class="calc-input-wrap">
-            <input type="text" inputmode="numeric" id="c_target_margin" value="<%= mq %>">
-            <i class="calc-suffix">%</i>
-          </span>
-        </label>
-        <div class="calc-presets" id="costMarginPresets">
-          <% [20, 30, 40, 50, 60].forEach((p) => { %>
-            <button type="button" class="calc-preset" data-margin="<%= p %>"><%= p %>%</button>
-          <% }); %>
+      <div class="cost-profit">
+        <div class="cost-profit-row">
+          <span>Lucro por peça</span>
+          <b id="r_profit">R$ 0,00</b>
+        </div>
+        <div class="cost-profit-row">
+          <span>Margem</span>
+          <b id="r_margin">0%</b>
         </div>
       </div>
-      <div class="calc-suggest-out">
+    </div>
+    <p class="cost-hint cost-origin" id="r_origin"></p>
+    <div class="cost-suggest">
+      <div class="cost-suggest-input">
+        <label class="cost-field cost-suggest-field" for="c_target_margin">
+          <span>Margem de lucro desejada</span>
+          <span class="cost-input-wrap">
+            <input type="text" inputmode="numeric" id="c_target_margin" value="<%= mq %>">
+            <i class="cost-input-suffix">%</i>
+          </span>
+        </label>
+        <div class="cost-margin-presets" id="costMarginPresets">
+          <button type="button" class="cost-preset" data-margin="20">20%</button>
+          <button type="button" class="cost-preset" data-margin="30">30%</button>
+          <button type="button" class="cost-preset" data-margin="40">40%</button>
+          <button type="button" class="cost-preset" data-margin="50">50%</button>
+          <button type="button" class="cost-preset" data-margin="60">60%</button>
+        </div>
+      </div>
+      <div class="cost-suggest-out">
         <span>Venda sugerida</span>
         <strong id="r_suggested">R$ 0,00</strong>
         <small id="r_suggestedNote">para <%= mq %>% de lucro</small>
       </div>
     </div>
-  </section>
+  </div>
 
   <% if (standalone) { %>
-    <!-- AÇÃO: salvar -->
-    <div class="calc-actions">
-      <button type="button" class="btn btn-primary btn-lg" id="costSaveCalc">
-        <i class="fas fa-check" id="costSaveCalcIcon"></i> <span id="costSaveCalcLabel">Salvar cálculo</span>
-      </button>
-      <p class="cost-hint" id="costStatus"></p>
-    </div>
-
     <!-- Comparativo de margens -->
-    <section class="calc-compare" id="costCompare" hidden>
-      <h4 class="calc-section-title"><i class="fas fa-table"></i> Compare as margens</h4>
-      <p class="calc-help">Preço de venda para cada margem, já com a taxa de falha aplicada. Use como referência na hora de cadastrar o produto.</p>
-      <div class="calc-compare-scroll">
-        <table class="calc-compare-table">
-          <thead><tr><th>Margem</th><th>Vender por</th><th>Lucro</th></tr></thead>
+    <div class="cost-compare" id="costCompare" hidden>
+      <h4 class="cost-section-title"><i class="fas fa-table"></i> Compare as margens</h4>
+      <div class="cost-compare-scroll">
+        <table class="cost-compare-table">
+          <thead>
+            <tr><th>Margem</th><th>Vender por</th><th>Lucro</th></tr>
+          </thead>
           <tbody id="costCompareBody"></tbody>
         </table>
       </div>
-    </section>
-
-    <!-- Histórico -->
-    <section class="calc-history" id="costHistory">
-      <div class="calc-history-head">
-        <h4 class="calc-section-title"><i class="fas fa-clock-rotate-left"></i> Histórico</h4>
-        <span class="calc-history-count" id="costHistoryCount"><%= histList.length %></span>
-      </div>
-      <p class="calc-help">Cálculos que você salvou. Clique em <b>Recarregar</b> para trazer os valores de volta ao formulário.</p>
-      <div class="calc-history-list" id="costHistoryList">
-        <% if (!histList.length) { %>
-          <p class="calc-empty" id="costHistoryEmpty">
-            <i class="fas fa-inbox"></i>
-            Nenhum cálculo salvo ainda. Preencha as etapas e toque em <b>Salvar cálculo</b>.
-          </p>
-        <% } else { %>
-          <% histList.forEach((c) => { %>
-            <article class="calc-history-item" data-id="<%= c.id %>"
-              data-product-id="<%= c.product_id || '' %>"
-              data-name="<%= c.product_name %>"
-              data-origin="<%= c.origin %>"
-              data-grams="<%= c.filament_grams %>"
-              data-hours="<%= c.print_hours %>"
-              data-waste="<%= c.material_waste_pct %>"
-              data-failure="<%= c.failure_rate %>"
-              data-labor-h="<%= c.labor_hours %>"
-              data-labor-rate="<%= c.labor_rate %>"
-              data-packaging="<%= c.packaging_cost %>"
-              data-packaging-custom="<%= c.use_custom_packaging ? 1 : 0 %>"
-              data-additional="<%= c.additional_cost %>"
-              data-additional-custom="<%= c.use_custom_additional ? 1 : 0 %>"
-              data-margin="<%= c.target_margin %>"
-              data-sale="<%= c.sale_price %>">
-              <div class="calc-history-main">
-                <b><%= c.product_name %></b>
-                <small>
-                  <% if (c.origin === 'product') { %>
-                    <i class="fas fa-box"></i> produto cadastrado
-                  <% } else { %>
-                    <i class="fas fa-pen-to-square"></i> peça avulsa
-                  <% } %>
-                  · <%= n2(c.filament_grams, 0) %> g · <%= n2(c.print_hours, 0) %> h · <%= n2(c.target_margin, 0) %>% margem
-                </small>
-              </div>
-              <div class="calc-history-values">
-                <b><%= b(c.total_cost) %></b>
-                <small>vender por <%= b(c.suggested_price) %></small>
-              </div>
-              <div class="calc-history-btns">
-                <button type="button" class="calc-icon-btn" data-act="reload" title="Recarregar no formulário">
-                  <i class="fas fa-rotate-left"></i><span>Recarregar</span>
-                </button>
-                <button type="button" class="calc-icon-btn is-danger" data-act="delete" title="Remover do histórico">
-                  <i class="fas fa-trash"></i><span>Excluir</span>
-                </button>
-              </div>
-            </article>
-          <% }); %>
-        <% } %>
-      </div>
-    </section>
+      <p class="cost-hint">Valores já com a taxa de falha aplicada.</p>
+    </div>
   <% } else { %>
     <div class="cost-actions">
       <button type="button" class="btn btn-primary" id="costApply">

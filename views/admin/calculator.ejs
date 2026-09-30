@@ -1,25 +1,30 @@
 <%- include('partials/header', { title: 'Calculadora de Custo' }) %>
 
 <div class="admin-content">
-  <%- include('partials/cost-calculator', { isStandalone: true, costData: null }) %>
+  <%- include('partials/cost-calculator', {
+        isStandalone: true,
+        costData: null,
+        costSettings: costSettings,
+        machine: machine,
+        blank: blank
+      }) %>
 
   <div class="calc-tips">
-    <h3><i class="fas fa-lightbulb"></i> Como funciona o custo real</h3>
+    <h3><i class="fas fa-lightbulb"></i> Como usar</h3>
     <ol>
-      <li><b>Escolha o destino.</b> Se a peça já está no catálogo, selecione o produto e o custo é gravado nele. Se ainda não existe, dê um nome e o cálculo fica no histórico.</li>
-      <li><b>Informe filamento e horas.</b> Use o peso final da peça e o tempo real do fatiador. O suporte e a purga entram no desperdício.</li>
-      <li><b>A taxa de falha protege você.</b> Se 10% das peças falham, o custo é dividido por 0,9 — assim o preço cobre a reimpressão.</li>
-      <li><b>Escolha a margem.</b> A venda sugerida é o custo dividido por (1 − margem), ou seja, o lucro já fica garantido.</li>
+      <li>Em <b>Editar padrões</b>, confira a tarifa de luz, o consumo da impressora e o preço do carretel de filamento.</li>
+      <li>Preencha o <b>filamento usado</b> em gramas e as <b>horas de impressão</b> da peça.</li>
+      <li>O <b>custo real</b> já inclui suporte, purga e a taxa de falha.</li>
+      <li>Escolha a margem desejada e veja o <b>preço de venda</b> e o <b>lucro por peça</b>.</li>
     </ol>
     <p class="calc-tips-foot">
       <i class="fas fa-circle-info"></i>
-      O custo aplicado em um produto também passa a contar no
-      <a href="/admin/finances">relatório de lucro</a>, porque o preço de custo do
-      pedido é registrado no momento da venda.
+      Para gravar o custo em um produto, use a calculadora dentro do
+      <a href="/admin/products">cadastro do produto</a> e clique em <b>Aplicar custo</b>.
     </p>
   </div>
 </div>
 
-<%- include('partials/cost-calculator-scripts', { isStandalone: true }) %>
-
 <%- include('partials/footer') %>
+
+<%- include('partials/cost-calculator-scripts', { isStandalone: true }) %>

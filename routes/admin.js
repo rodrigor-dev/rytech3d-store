@@ -17,9 +17,7 @@ const {
   currentMargin,
   toNum,
   round2,
-  isBlank,
-  insertCostCalculation,
-  listCostCalculations
+  isBlank
 } = require('../cost-calculator');
 
 const sharp = require('sharp');
@@ -402,130 +400,14 @@ router.post('/products/save', mixedUpload.fields([
 
 // ─── CALCULADORA DE CUSTO ─────────────────────────────────────────────────────
 
-// Aba avulsa: mesma calculadora do cadastro de produto, porém independente.
-// Lista os produtos cadastrados (para aplicar o custo neles) e o histórico
-// de cálculos salvos, inclusive os de peças que ainda não existem no catálogo.
+// Aba avulsa: mesma calculadora do cadastro de produto, porém independente
 router.get('/calculator', asyncHandler(async (req, res) => {
   const costSettings = await getCostSettings();
-  const [products, history] = await Promise.all([
-    prepare('SELECT id, name, cost_price, price FROM products ORDER BY LOWER(name) ASC').all(),
-    listCostCalculations(60)
-  ]);
   res.render('admin/calculator', {
     costSettings,
     machine: machineHourlyCost(costSettings),
-    blank: isBlank,
-    products,
-    history
+    blank: isBlank
   });
-}));
-
-// Ficha de custo salva de um produto, para carregar a calculadora.
-router.get('/api/products/:id/cost-sheet', asyncHandler(async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!id || isNaN(id)) return res.status(400).json({ error: 'Produto inválido.' });
-  const product = await prepare('SELECT id, name, price, cost_price FROM products WHERE id = ?').get(id);
-  if (!product) return res.status(404).json({ error: 'Produto não encontrado.' });
-  let sheet = null;
-  try { sheet = await prepare('SELECT * FROM product_costs WHERE product_id = ?').get(id); } catch {}
-  res.json({ success: true, product, sheet });
-}));
-
-// Salva um cálculo. Se product_id vier preenchido, grava a ficha no produto e
-// sincroniza o custo; sempre registra no histórico.
-router.post('/calculations', asyncHandler(async (req, res) => {
-  try {
-    const body = req.body || {};
-    const settings = await getCostSettings();
-    const calculated = calculateProductCost(body, settings);
-
-    const rawMargin = body.target_margin;
-    const marginPct = (rawMargin === undefined || rawMargin === null || rawMargin === '')
-      ? (Number(settings.default_margin) || 40)
-      : toNum(rawMargin);
-    const salePrice = toNum(body.sale_price);
-    const total = calculated.total_cost;
-    const suggested = suggestPrice(total, marginPct);
-
-    const productId = parseInt(body.product_id, 10);
-    let target = null;
-    if (productId && !isNaN(productId)) {
-      target = await prepare('SELECT id, name FROM products WHERE id = ?').get(productId);
-      if (!target) return res.status(404).json({ error: 'Produto não encontrado.' });
-    }
-
-    // Produto cadastrado: nome vem do catálogo e não pode ser arbitrário.
-    const productName = target ? target.name : String(body.product_name || '').trim();
-    if (!productName) {
-      return res.status(400).json({ error: 'Dê um nome ao produto para salvar o cálculo.' });
-    }
-    if (String(productName).length > 160) {
-      return res.status(400).json({ error: 'Nome do produto muito longo (máx. 160).' });
-    }
-
-    // Guarda os valores JÁ RESOLVIDOS (ex.: embalagem 3,00 vindo do padrão da
-    // loja) junto com as flags use_custom_*, que é a mesma convenção usada em
-    // product_costs. Assim a ficha do produto e o histórico contam a mesma
-    // história e o recarregamento não "congela" um padrão antigo.
-    const costRow = {
-      product_id: target ? target.id : null,
-      product_name: productName,
-      origin: target ? 'product' : 'draft',
-      filament_grams: calculated.filament_grams,
-      print_hours: calculated.print_hours,
-      filament_price: calculated.filament_price,
-      material_waste_pct: calculated.material_waste_pct,
-      labor_hours: calculated.labor_hours,
-      labor_rate: calculated.labor_rate,
-      packaging_cost: calculated.packaging_cost,
-      additional_cost: calculated.additional_cost,
-      use_custom_packaging: calculated.use_custom_packaging,
-      use_custom_additional: calculated.use_custom_additional,
-      failure_rate: calculated.failure_rate,
-      target_margin: marginPct,
-      material_cost: calculated.material_cost,
-      energy_cost: calculated.energy_cost,
-      maintenance_cost: calculated.maintenance_cost,
-      machine_hourly_cost: calculated.machine_hourly_cost,
-      total_cost: total,
-      suggested_price: suggested,
-      sale_price: salePrice
-    };
-
-    const row = await insertCostCalculation(costRow);
-    if (target) {
-      await persistCostForProduct(target.id, calculated, 'Calculadora de custo 3D');
-    }
-
-    res.json({
-      success: true,
-      calculation: row,
-      applied_to_product: target ? target.id : null,
-      product_name: productName,
-      total_cost: total,
-      suggested_price: suggested
-    });
-  } catch (err) {
-    console.error('Erro ao salvar cálculo:', err);
-    res.status(500).json({ error: 'Erro ao salvar o cálculo. Tente novamente.' });
-  }
-}));
-
-// Histórico de cálculos (mais recentes primeiro).
-router.get('/calculations', asyncHandler(async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit, 10) || 60, 200);
-  res.json({ success: true, calculations: await listCostCalculations(limit) });
-}));
-
-// Remove um cálculo do histórico. Cálculos aplicados a produtos não são
-// removidos aqui: a ficha do produto é a fonte da verdade do custo dele.
-router.delete('/calculations/:id', asyncHandler(async (req, res) => {
-  const id = parseInt(req.params.id, 10);
-  if (!id || isNaN(id)) return res.status(400).json({ error: 'Cálculo inválido.' });
-  const existing = await prepare('SELECT id FROM cost_calculations WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ error: 'Cálculo não encontrado.' });
-  await prepare('DELETE FROM cost_calculations WHERE id = ?').run(id);
-  res.json({ success: true });
 }));
 
 // ─── CUSTO DO PRODUTO ─────────────────────────────────────────────────────────
@@ -547,53 +429,6 @@ router.post('/api/products/cost-preview', asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
-/**
- * Grava a ficha de custo de um produto e mantém products.cost_price em
- * sincronia (coluna usada no cálculo de lucro dos pedidos).
- * Compartilhado entre /products/save-cost (dentro do cadastro) e a calculadora
- * avulsa, para que os dois fluxos nunca divirjam.
- */
-async function persistCostForProduct(productId, calculated, note) {
-  const existing = await prepare('SELECT id FROM product_costs WHERE product_id = ?').get(productId);
-
-  if (existing) {
-    await prepare(`UPDATE product_costs SET
-      filament_grams=?, print_hours=?, filament_price=?, material_waste_pct=?,
-      labor_hours=?, labor_rate=?, packaging_cost=?, additional_cost=?,
-      use_custom_packaging=?, use_custom_additional=?,
-      failure_rate=?, material_cost=?, energy_cost=?,
-      maintenance_cost=?, machine_hourly_cost=?, total_cost=?,
-      updated_at=CURRENT_TIMESTAMP
-      WHERE product_id=?`).run(
-      calculated.filament_grams, calculated.print_hours, calculated.filament_price,
-      calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
-      calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
-      calculated.use_custom_additional,
-      calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
-      calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost,
-      productId
-    );
-  } else {
-    await prepare(`INSERT INTO product_costs
-      (product_id, filament_grams, print_hours, filament_price, material_waste_pct,
-       labor_hours, labor_rate, packaging_cost, additional_cost, use_custom_packaging,
-       use_custom_additional, failure_rate, material_cost, energy_cost, maintenance_cost,
-       machine_hourly_cost, total_cost)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-      productId, calculated.filament_grams, calculated.print_hours, calculated.filament_price,
-      calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
-      calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
-      calculated.use_custom_additional,
-      calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
-      calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost
-    );
-  }
-
-  await prepare('UPDATE products SET cost_price = ? WHERE id = ?').run(calculated.total_cost, productId);
-  await prepare('INSERT INTO cost_price_history (product_id, cost_price, note) VALUES (?, ?, ?)')
-    .run(productId, calculated.total_cost, note || 'Calculadora de custo 3D');
-}
-
 // Salva a ficha de custo do produto e sincroniza products.cost_price
 router.post('/products/save-cost', asyncHandler(async (req, res) => {
   try {
@@ -608,7 +443,45 @@ router.post('/products/save-cost', asyncHandler(async (req, res) => {
     const settings = await getCostSettings();
     const calculated = calculateProductCost(req.body, settings);
 
-    await persistCostForProduct(productId, calculated);
+    const existing = await prepare('SELECT id FROM product_costs WHERE product_id = ?').get(productId);
+
+    if (existing) {
+      await prepare(`UPDATE product_costs SET
+        filament_grams=?, print_hours=?, filament_price=?, material_waste_pct=?,
+        labor_hours=?, labor_rate=?, packaging_cost=?, additional_cost=?,
+        use_custom_packaging=?, use_custom_additional=?,
+        failure_rate=?, material_cost=?, energy_cost=?,
+        maintenance_cost=?, machine_hourly_cost=?, total_cost=?,
+        updated_at=CURRENT_TIMESTAMP
+        WHERE product_id=?`).run(
+        calculated.filament_grams, calculated.print_hours, calculated.filament_price,
+        calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
+        calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
+        calculated.use_custom_additional,
+        calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
+        calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost,
+        productId
+      );
+    } else {
+      await prepare(`INSERT INTO product_costs
+        (product_id, filament_grams, print_hours, filament_price, material_waste_pct,
+         labor_hours, labor_rate, packaging_cost, additional_cost, use_custom_packaging,
+         use_custom_additional, failure_rate, material_cost, energy_cost, maintenance_cost,
+         machine_hourly_cost, total_cost)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+        productId, calculated.filament_grams, calculated.print_hours, calculated.filament_price,
+        calculated.material_waste_pct, calculated.labor_hours, calculated.labor_rate,
+        calculated.packaging_cost, calculated.additional_cost, calculated.use_custom_packaging,
+        calculated.use_custom_additional,
+        calculated.failure_rate, calculated.material_cost, calculated.energy_cost,
+        calculated.maintenance_cost, calculated.machine_hourly_cost, calculated.total_cost
+      );
+    }
+
+    // Mantém products.cost_price em sincronia (usado nos relatórios de lucro)
+    await prepare('UPDATE products SET cost_price = ? WHERE id = ?').run(calculated.total_cost, productId);
+    await prepare('INSERT INTO cost_price_history (product_id, cost_price, note) VALUES (?, ?, ?)')
+      .run(productId, calculated.total_cost, 'Calculadora de custo 3D');
 
     res.json({ success: true, cost: calculated, cost_price: calculated.total_cost });
   } catch (err) {

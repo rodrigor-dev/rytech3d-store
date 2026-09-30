@@ -247,63 +247,6 @@ function currentMargin(totalCost, salePrice) {
   return round2(((p - c) / p) * 100);
 }
 
-// ─── Histórico de cálculos ───────────────────────────────────────────────────
-//
-// A ficha em product_costs é a fonte da verdade do custo de um produto que já
-// existe. cost_calculations é o registro de tudo que foi calculado na
-// calculadora, inclusive de peças que ainda não estão no catálogo, e por isso
-// guarda também o nome digitado. Assim como product_costs, armazena os valores
-// já resolvidos junto das flags use_custom_*, para que o recarregamento
-// reproduza exatamente a mesma conta.
-
-/** Grava um cálculo no histórico e devolve a linha normalizada. */
-async function insertCostCalculation(row) {
-  const result = await prepare(`INSERT INTO cost_calculations
-    (product_id, product_name, origin, filament_grams, print_hours, filament_price,
-     material_waste_pct, labor_hours, labor_rate, packaging_cost, additional_cost,
-     use_custom_packaging, use_custom_additional, failure_rate, target_margin,
-     material_cost, energy_cost, maintenance_cost, machine_hourly_cost, total_cost,
-     suggested_price, sale_price)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-    .run(
-      row.product_id || null, row.product_name, row.origin || 'draft',
-      row.filament_grams, row.print_hours, row.filament_price,
-      row.material_waste_pct, row.labor_hours, row.labor_rate,
-      row.packaging_cost, row.additional_cost,
-      row.use_custom_packaging ? 1 : 0, row.use_custom_additional ? 1 : 0,
-      row.failure_rate, row.target_margin,
-      row.material_cost, row.energy_cost, row.maintenance_cost, row.machine_hourly_cost,
-      row.total_cost, row.suggested_price, row.sale_price
-    );
-  const id = await resolveInsertedId(result);
-  return { ...row, id };
-}
-
-/**
- * O driver SQLite deste projeto (sqlite-wasm) não repõe last_insert_rowid(),
- * então caímos em MAX(id) — a mesma estratégia já usada ao criar produtos.
- */
-async function resolveInsertedId(result) {
-  const direct = Number(result && result.lastInsertRowid);
-  if (direct > 0) return direct;
-  const last = await prepare('SELECT MAX(id) as id FROM cost_calculations').get();
-  return last && last.id ? Number(last.id) : null;
-}
-
-/** Histórico paginado, mais recente primeiro. Traz todos os campos de entrada
- *  para que a interface consiga recarregar o cálculo sem perder personalizações. */
-async function listCostCalculations(limit = 60) {
-  const max = Math.min(Math.max(parseInt(limit, 10) || 60, 1), 200);
-  return prepare(
-    `SELECT id, product_id, product_name, origin, filament_grams, print_hours,
-            filament_price, material_waste_pct, labor_hours, labor_rate,
-            packaging_cost, additional_cost, use_custom_packaging,
-            use_custom_additional, failure_rate, target_margin,
-            total_cost, suggested_price, sale_price, created_at
-     FROM cost_calculations ORDER BY id DESC LIMIT ${max}`
-  ).all();
-}
-
 module.exports = {
   DEFAULT_COST_SETTINGS,
   getCostSettings,
@@ -315,7 +258,5 @@ module.exports = {
   printerKwhPerHour,
   toNum,
   round2,
-  isBlank,
-  insertCostCalculation,
-  listCostCalculations
+  isBlank
 };
